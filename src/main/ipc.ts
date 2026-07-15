@@ -1,26 +1,32 @@
-import { BrowserWindow, dialog, ipcMain } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { randomUUID } from 'crypto'
 import { existsSync } from 'fs'
+import { dirname } from 'path'
 import {
   AppSettings,
   HostConfig,
-  SftpBookmark,
-  Snippet
+  SftpBookmark
 } from '../shared/types'
 import { store } from './store/encrypted-store'
 import { sessionManager } from './session-manager'
 import {
   defaultSshConfigPath,
-  parseCsvHosts,
+  linkProxyJumps,
   parseSshConfig,
   precheckHost,
   readTextFile
 } from './host-utils'
+import { checkGitHubUpdate } from './update-check'
+import { mergeHostSecrets, redactHost, redactHosts, redactTrash } from './host-redact'
 
 function ok<T>(data: T): { ok: true; data: T }
 function ok(): { ok: true }
 function ok<T>(data?: T) {
   return data === undefined ? { ok: true as const } : { ok: true as const, data }
+}
+
+function isAllowedExternalUrl(url: string): boolean {
+  return url.startsWith('https://github.com/ajaxsync/ssh-client')
 }
 
 function fail(error: unknown): { ok: false; error: string } {
@@ -29,6 +35,28 @@ function fail(error: unknown): { ok: false; error: string } {
 }
 
 export function registerIpc(getWindow: () => BrowserWindow | null): void {
+  ipcMain.handle('app:version', () => ok(app.getVersion()))
+
+  ipcMain.handle('app:checkUpdate', async () => {
+    try {
+      return ok(await checkGitHubUpdate(app.getVersion()))
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle('shell:openExternal', async (_e, url: string) => {
+    try {
+      if (typeof url !== 'string' || !isAllowedExternalUrl(url)) {
+        throw new Error('不允许打开该链接')
+      }
+      await shell.openExternal(url)
+      return ok()
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
   ipcMain.handle('vault:status', () => ok(store.status()))
 
   ipcMain.handle('vault:setup', (_e, password: string) => {
@@ -96,7 +124,17 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
 
   ipcMain.handle('hosts:list', () => {
     try {
-      return ok(store.listHosts())
+      return ok(redactHosts(store.listHosts()))
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle('hosts:get', (_e, id: string) => {
+    try {
+      const host = store.getHost(id)
+      if (!host) throw new Error('主机不存在')
+      return ok(host)
     } catch (error) {
       return fail(error)
     }
@@ -104,7 +142,9 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
 
   ipcMain.handle('hosts:save', (_e, host: HostConfig) => {
     try {
-      return ok(store.saveHost(host))
+      const existing = store.getHost(host.id)
+      const merged = mergeHostSecrets(host, existing)
+      return ok(redactHost(store.saveHost(merged)))
     } catch (error) {
       return fail(error)
     }
@@ -121,7 +161,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
 
   ipcMain.handle('trash:list', () => {
     try {
-      return ok(store.listTrashHosts())
+      return ok(redactTrash(store.listTrashHosts()))
     } catch (error) {
       return fail(error)
     }
@@ -129,7 +169,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
 
   ipcMain.handle('trash:restore', (_e, id: string) => {
     try {
-      return ok(store.restoreHost(id))
+      return ok(redactHost(store.restoreHost(id)))
     } catch (error) {
       return fail(error)
     }
@@ -167,8 +207,8 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     try {
       const path = filePath || defaultSshConfigPath()
       if (!existsSync(path)) throw new Error(`找不到配置文件: ${path}`)
-      const parsed = parseSshConfig(readTextFile(path))
-      const hosts: HostConfig[] = parsed
+      const parsed = parseSshConfig(readTextFile(path), dirname(path))
+      let hosts: HostConfig[] = parsed
         .filter((p) => p.host && p.username)
         .map((p) => ({
           id: randomUUID(),
@@ -180,31 +220,9 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
           privateKeyPath: p.privateKeyPath,
           group: p.group
         }))
+      hosts = linkProxyJumps(hosts, parsed)
       store.saveHosts(hosts)
-      return ok(hosts)
-    } catch (error) {
-      return fail(error)
-    }
-  })
-
-  ipcMain.handle('hosts:importCsv', async (_e, filePath: string) => {
-    try {
-      const parsed = parseCsvHosts(readTextFile(filePath))
-      const hosts: HostConfig[] = parsed
-        .filter((p) => p.host)
-        .map((p) => ({
-          id: randomUUID(),
-          name: p.name,
-          host: p.host,
-          port: Number(p.port) || 22,
-          username: p.username || '',
-          authType: p.authType || 'password',
-          password: p.password,
-          privateKeyPath: p.privateKeyPath,
-          group: p.group || 'csv'
-        }))
-      store.saveHosts(hosts)
-      return ok(hosts)
+      return ok(redactHosts(hosts))
     } catch (error) {
       return fail(error)
     }
@@ -226,26 +244,17 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     }
   })
 
-  ipcMain.handle('snippets:list', () => {
+  ipcMain.handle('commandHistory:list', (_e, hostId: string) => {
     try {
-      return ok(store.listSnippets())
+      return ok(store.listCommandHistory(hostId))
     } catch (error) {
       return fail(error)
     }
   })
 
-  ipcMain.handle('snippets:save', (_e, snippet: Snippet) => {
+  ipcMain.handle('commandHistory:push', (_e, hostId: string, command: string) => {
     try {
-      return ok(store.saveSnippet(snippet))
-    } catch (error) {
-      return fail(error)
-    }
-  })
-
-  ipcMain.handle('snippets:delete', (_e, id: string) => {
-    try {
-      store.deleteSnippet(id)
-      return ok()
+      return ok(store.pushCommandHistory(hostId, command))
     } catch (error) {
       return fail(error)
     }
@@ -313,6 +322,45 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   ipcMain.handle('metrics:stop', (_e, sessionId: string) => {
     sessionManager.stopMetrics(sessionId)
     return ok()
+  })
+
+  ipcMain.handle('vault:export', async () => {
+    try {
+      if (!store.isInitialized()) throw new Error('保险库不存在')
+      const win = getWindow()
+      const opts: Electron.SaveDialogOptions = {
+        title: '备份数据',
+        defaultPath: 'ssh-client-backup.dat',
+        filters: [{ name: 'Backup', extensions: ['dat'] }]
+      }
+      const result = win
+        ? await dialog.showSaveDialog(win, opts)
+        : await dialog.showSaveDialog(opts)
+      if (result.canceled || !result.filePath) return ok(null)
+      store.exportTo(result.filePath)
+      return ok(result.filePath)
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle('vault:import', async () => {
+    try {
+      const win = getWindow()
+      const opts: Electron.OpenDialogOptions = {
+        title: '从备份恢复',
+        properties: ['openFile'],
+        filters: [{ name: 'Backup', extensions: ['dat'] }]
+      }
+      const result = win
+        ? await dialog.showOpenDialog(win, opts)
+        : await dialog.showOpenDialog(opts)
+      if (result.canceled || !result.filePaths[0]) return ok(false)
+      store.importFrom(result.filePaths[0])
+      return ok(true)
+    } catch (error) {
+      return fail(error)
+    }
   })
 
   ipcMain.on('session:write', (_e, payload: { sessionId: string; data: string }) => {

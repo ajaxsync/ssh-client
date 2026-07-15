@@ -44,7 +44,7 @@ const { items } = storeToRefs(toast)
 .glass-toast {
   pointer-events: auto;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
   padding: 10px 12px;
   border-radius: 14px;
@@ -59,7 +59,7 @@ const { items } = storeToRefs(toast)
   flex: 1;
   min-width: 0;
   font-size: 12px;
-  line-height: 1.45;
+  line-height: 1.35;
   word-break: break-word;
   color: var(--text, #e8f1ff);
 }
@@ -87,8 +87,12 @@ const { items } = storeToRefs(toast)
 
 .glass-toast-close {
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 22px;
   height: 22px;
+  margin: 0;
   padding: 0;
   border: none;
   border-radius: 8px;

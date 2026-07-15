@@ -3,19 +3,34 @@ import type {
   AppSettings,
   HostConfig,
   HostMetrics,
+  HostPublic,
   PrecheckResult,
   SessionInfo,
   SftpBookmark,
   SftpListResult,
-  Snippet,
   TransferProgress,
-  TrashHostItem,
+  TrashHostPublic,
   VaultStatus
 } from '../shared/types'
 
 type Result<T = void> = { ok: true; data: T } | { ok: false; error: string }
 
 const api = {
+  app: {
+    getVersion: (): Promise<Result<string>> => ipcRenderer.invoke('app:version'),
+    checkUpdate: (): Promise<
+      Result<{
+        current: string
+        latest: string
+        url: string
+        updateAvailable: boolean
+      }>
+    > => ipcRenderer.invoke('app:checkUpdate')
+  },
+  shell: {
+    openExternal: (url: string): Promise<Result> =>
+      ipcRenderer.invoke('shell:openExternal', url)
+  },
   vault: {
     status: (): Promise<Result<VaultStatus>> => ipcRenderer.invoke('vault:status'),
     setup: (password: string): Promise<Result> => ipcRenderer.invoke('vault:setup', password),
@@ -24,22 +39,23 @@ const api = {
     unlockOs: (): Promise<Result> => ipcRenderer.invoke('vault:unlockOs'),
     tryAutoUnlock: (): Promise<Result<VaultStatus>> => ipcRenderer.invoke('vault:tryAutoUnlock'),
     lock: (): Promise<Result> => ipcRenderer.invoke('vault:lock'),
-    reset: (): Promise<Result> => ipcRenderer.invoke('vault:reset')
+    reset: (): Promise<Result> => ipcRenderer.invoke('vault:reset'),
+    exportBackup: (): Promise<Result<string | null>> => ipcRenderer.invoke('vault:export'),
+    importBackup: (): Promise<Result<boolean>> => ipcRenderer.invoke('vault:import')
   },
   hosts: {
-    list: (): Promise<Result<HostConfig[]>> => ipcRenderer.invoke('hosts:list'),
-    save: (host: HostConfig): Promise<Result<HostConfig>> => ipcRenderer.invoke('hosts:save', host),
+    list: (): Promise<Result<HostPublic[]>> => ipcRenderer.invoke('hosts:list'),
+    get: (id: string): Promise<Result<HostConfig>> => ipcRenderer.invoke('hosts:get', id),
+    save: (host: HostConfig): Promise<Result<HostPublic>> => ipcRenderer.invoke('hosts:save', host),
     delete: (id: string): Promise<Result> => ipcRenderer.invoke('hosts:delete', id),
     precheck: (hostId: string): Promise<Result<PrecheckResult>> =>
       ipcRenderer.invoke('hosts:precheck', hostId),
-    importSshConfig: (filePath?: string): Promise<Result<HostConfig[]>> =>
-      ipcRenderer.invoke('hosts:importSshConfig', filePath),
-    importCsv: (filePath: string): Promise<Result<HostConfig[]>> =>
-      ipcRenderer.invoke('hosts:importCsv', filePath)
+    importSshConfig: (filePath?: string): Promise<Result<HostPublic[]>> =>
+      ipcRenderer.invoke('hosts:importSshConfig', filePath)
   },
   trash: {
-    list: (): Promise<Result<TrashHostItem[]>> => ipcRenderer.invoke('trash:list'),
-    restore: (id: string): Promise<Result<HostConfig>> => ipcRenderer.invoke('trash:restore', id),
+    list: (): Promise<Result<TrashHostPublic[]>> => ipcRenderer.invoke('trash:list'),
+    restore: (id: string): Promise<Result<HostPublic>> => ipcRenderer.invoke('trash:restore', id),
     purge: (id: string): Promise<Result> => ipcRenderer.invoke('trash:purge', id),
     empty: (): Promise<Result> => ipcRenderer.invoke('trash:empty')
   },
@@ -48,11 +64,11 @@ const api = {
     set: (settings: AppSettings): Promise<Result<AppSettings>> =>
       ipcRenderer.invoke('settings:set', settings)
   },
-  snippets: {
-    list: (): Promise<Result<Snippet[]>> => ipcRenderer.invoke('snippets:list'),
-    save: (snippet: Snippet): Promise<Result<Snippet>> =>
-      ipcRenderer.invoke('snippets:save', snippet),
-    delete: (id: string): Promise<Result> => ipcRenderer.invoke('snippets:delete', id)
+  commandHistory: {
+    list: (hostId: string): Promise<Result<string[]>> =>
+      ipcRenderer.invoke('commandHistory:list', hostId),
+    push: (hostId: string, command: string): Promise<Result<string[]>> =>
+      ipcRenderer.invoke('commandHistory:push', hostId, command)
   },
   bookmarks: {
     list: (hostId?: string): Promise<Result<SftpBookmark[]>> =>

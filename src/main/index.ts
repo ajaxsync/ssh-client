@@ -4,6 +4,10 @@ import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import { registerIpc } from "./ipc";
 import { sessionManager } from "./session-manager";
 
+// package.json name 已从 ssh-client 改为 ssh-client-plus，
+// 但 userData 路径必须保持旧值，否则已有用户升级后找不到保险库数据。
+app.setPath("userData", join(app.getPath("appData"), "ssh-client"));
+
 let mainWindow: BrowserWindow | null = null;
 
 function createWindow(): void {

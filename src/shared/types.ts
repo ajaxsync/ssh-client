@@ -29,11 +29,15 @@ export interface HostConfig {
   lastConnectedAt?: number
 }
 
-export interface Snippet {
-  id: string
-  title: string
-  command: string
-  category?: string
+/** 渲染列表用：不含 password / passphrase */
+export type HostPublic = Omit<HostConfig, 'password' | 'passphrase'> & {
+  hasPassword: boolean
+  hasPassphrase: boolean
+}
+
+export type TrashHostPublic = {
+  host: HostPublic
+  deletedAt: number
 }
 
 export interface SftpBookmark {
@@ -42,6 +46,9 @@ export interface SftpBookmark {
   path: string
   hostId?: string
 }
+
+/** 每主机命令历史上限（MRU 去重） */
+export const COMMAND_HISTORY_MAX = 50
 
 export interface TrashHostItem {
   host: HostConfig

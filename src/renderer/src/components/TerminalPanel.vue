@@ -17,7 +17,12 @@ defineProps<{
     </div>
 
     <div v-if="!tab.closed || tab.reconnecting" class="terminal-body">
-      <TerminalView :key="tab.sessionId" :session-id="tab.sessionId" :active="active" />
+      <TerminalView
+        :key="tab.sessionId"
+        :session-id="tab.sessionId"
+        :host-id="tab.hostId"
+        :active="active"
+      />
     </div>
   </div>
 </template>
@@ -61,6 +66,8 @@ defineProps<{
 
 .pane-toast {
   pointer-events: none;
+  display: flex;
+  align-items: center;
   padding: 10px 12px;
   border-radius: 14px;
   border: 1px solid var(--glass-border);
@@ -68,7 +75,7 @@ defineProps<{
   backdrop-filter: blur(16px);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
   font-size: 12px;
-  line-height: 1.45;
+  line-height: 1.35;
 }
 
 .pane-toast.error {

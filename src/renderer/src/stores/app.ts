@@ -3,9 +3,9 @@ import { ref } from 'vue'
 import type {
   AppSettings,
   HostConfig,
+  HostPublic,
   SftpBookmark,
-  Snippet,
-  TrashHostItem,
+  TrashHostPublic,
   VaultStatus
 } from '../../../shared/types'
 import { DEFAULT_SETTINGS, METRICS_LAYOUT_VERSION, resolveMetricsLayout } from '../../../shared/types'
@@ -18,11 +18,10 @@ export const useAppStore = defineStore('app', () => {
     osUnlockAvailable: false,
     canAutoUnlock: false
   })
-  const hosts = ref<HostConfig[]>([])
+  const hosts = ref<HostPublic[]>([])
   const settings = ref<AppSettings>({ ...DEFAULT_SETTINGS })
-  const snippets = ref<Snippet[]>([])
   const bookmarks = ref<SftpBookmark[]>([])
-  const trash = ref<TrashHostItem[]>([])
+  const trash = ref<TrashHostPublic[]>([])
   const error = ref('')
   const busy = ref(false)
 
@@ -123,7 +122,6 @@ export const useAppStore = defineStore('app', () => {
         return false
       }
       hosts.value = []
-      snippets.value = []
       bookmarks.value = []
       trash.value = []
       settings.value = { ...DEFAULT_SETTINGS }
@@ -137,7 +135,6 @@ export const useAppStore = defineStore('app', () => {
   async function lock(): Promise<void> {
     await window.api.vault.lock()
     hosts.value = []
-    snippets.value = []
     bookmarks.value = []
     trash.value = []
     settings.value = { ...DEFAULT_SETTINGS }
@@ -145,10 +142,9 @@ export const useAppStore = defineStore('app', () => {
   }
 
   async function loadWorkspace(): Promise<void> {
-    const [hostsRes, settingsRes, snipRes, bookmarkRes, trashRes] = await Promise.all([
+    const [hostsRes, settingsRes, bookmarkRes, trashRes] = await Promise.all([
       window.api.hosts.list(),
       window.api.settings.get(),
-      window.api.snippets.list(),
       window.api.bookmarks.list(),
       window.api.trash.list()
     ])
@@ -168,9 +164,17 @@ export const useAppStore = defineStore('app', () => {
         void saveSettings(settings.value)
       }
     }
-    if (snipRes.ok) snippets.value = snipRes.data
     if (bookmarkRes.ok) bookmarks.value = bookmarkRes.data
     if (trashRes.ok) trash.value = trashRes.data
+  }
+
+  async function getHost(id: string): Promise<HostConfig | null> {
+    const res = await window.api.hosts.get(id)
+    if (!res.ok) {
+      error.value = res.error
+      return null
+    }
+    return res.data
   }
 
   async function saveHost(host: HostConfig): Promise<boolean> {
@@ -225,14 +229,15 @@ export const useAppStore = defineStore('app', () => {
     }
   }
 
-  async function saveSnippet(snippet: Snippet): Promise<void> {
-    const res = await window.api.snippets.save(snippet)
-    if (res.ok) await loadWorkspace()
+  async function listCommandHistory(hostId: string): Promise<string[]> {
+    if (!hostId) return []
+    const res = await window.api.commandHistory.list(hostId)
+    return res.ok ? res.data : []
   }
 
-  async function deleteSnippet(id: string): Promise<void> {
-    await window.api.snippets.delete(id)
-    await loadWorkspace()
+  async function pushCommandHistory(hostId: string, command: string): Promise<void> {
+    if (!hostId || !command.trim()) return
+    await window.api.commandHistory.push(hostId, command.trim())
   }
 
   async function saveBookmark(bookmark: SftpBookmark): Promise<void> {
@@ -252,20 +257,10 @@ export const useAppStore = defineStore('app', () => {
     return `已导入 ${res.data.length} 台主机`
   }
 
-  async function importCsv(): Promise<string> {
-    const file = await window.api.dialog.openFile([{ name: 'CSV', extensions: ['csv', 'txt'] }])
-    if (!file.ok || !file.data) return '已取消'
-    const res = await window.api.hosts.importCsv(file.data)
-    if (!res.ok) return res.error
-    await loadWorkspace()
-    return `已导入 ${res.data.length} 台主机`
-  }
-
   return {
     vault,
     hosts,
     settings,
-    snippets,
     bookmarks,
     trash,
     error,
@@ -279,17 +274,17 @@ export const useAppStore = defineStore('app', () => {
     resetVault,
     lock,
     loadWorkspace,
+    getHost,
     saveHost,
     deleteHost,
     restoreHost,
     purgeHost,
     emptyTrash,
     saveSettings,
-    saveSnippet,
-    deleteSnippet,
+    listCommandHistory,
+    pushCommandHistory,
     saveBookmark,
     deleteBookmark,
-    importSshConfig,
-    importCsv
+    importSshConfig
   }
 })

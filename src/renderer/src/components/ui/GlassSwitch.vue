@@ -10,16 +10,20 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <button
-    type="button"
-    class="switch-row"
-    @click="emit('update:modelValue', !modelValue)"
-  >
-    <span>{{ label }}</span>
-    <span class="track" :class="{ on: modelValue }">
+  <div class="switch-row">
+    <span class="switch-label">{{ label }}</span>
+    <button
+      type="button"
+      class="track"
+      :class="{ on: modelValue }"
+      role="switch"
+      :aria-checked="modelValue"
+      :aria-label="label"
+      @click="emit('update:modelValue', !modelValue)"
+    >
       <span class="thumb" />
-    </span>
-  </button>
+    </button>
+  </div>
 </template>
 
 <style scoped>
@@ -37,6 +41,11 @@ const emit = defineEmits<{
   font-size: 13px;
 }
 
+.switch-label {
+  min-width: 0;
+  user-select: none;
+}
+
 .track {
   width: 44px;
   height: 26px;
@@ -46,6 +55,8 @@ const emit = defineEmits<{
   position: relative;
   transition: background 160ms var(--ease);
   flex-shrink: 0;
+  padding: 0;
+  cursor: pointer;
 }
 
 .track.on {
@@ -63,6 +74,7 @@ const emit = defineEmits<{
   background: rgba(255, 255, 255, 0.9);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
   transition: transform 160ms var(--ease);
+  pointer-events: none;
 }
 
 .track.on .thumb {

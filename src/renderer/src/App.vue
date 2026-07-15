@@ -6,14 +6,11 @@ import UnlockView from './components/UnlockView.vue'
 import HostSidebar from './components/HostSidebar.vue'
 import SessionWorkspace from './components/SessionWorkspace.vue'
 import SettingsModal from './components/SettingsModal.vue'
-import SnippetsDrawer from './components/SnippetsDrawer.vue'
-import TrashDrawer from './components/TrashDrawer.vue'
 import GlassToastHost from './components/ui/GlassToastHost.vue'
 
 const app = useAppStore()
 const sessions = useSessionStore()
 const showSettings = ref(false)
-const showTrash = ref(false)
 
 let offClosed: (() => void) | undefined
 let offError: (() => void) | undefined
@@ -57,14 +54,11 @@ async function handleLock(): Promise<void> {
       <HostSidebar
         class="side"
         @open-settings="showSettings = true"
-        @open-trash="showTrash = true"
         @lock="handleLock"
       />
       <SessionWorkspace class="main" />
     </div>
     <SettingsModal v-if="showSettings" @close="showSettings = false" />
-    <TrashDrawer v-if="showTrash" @close="showTrash = false" />
-    <SnippetsDrawer v-if="sessions.showSnippets" @close="sessions.showSnippets = false" />
   </div>
   <GlassToastHost />
 </template>

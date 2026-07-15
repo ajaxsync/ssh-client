@@ -5,9 +5,11 @@ import { FitAddon } from '@xterm/addon-fit'
 import { SearchAddon } from '@xterm/addon-search'
 import '@xterm/xterm/css/xterm.css'
 import { useAppStore } from '../stores/app'
+import { CommandLineBuffer } from '../lib/command-history'
 
 const props = defineProps<{
   sessionId: string
+  hostId: string
   active: boolean
 }>()
 
@@ -24,6 +26,7 @@ let offData: (() => void) | undefined
 let ro: ResizeObserver | null = null
 let onContextMenu: ((e: MouseEvent) => void) | null = null
 let onWheel: ((e: WheelEvent) => void) | null = null
+const lineBuf = new CommandLineBuffer()
 
 const FONT_MIN = 10
 const FONT_MAX = 28
@@ -152,6 +155,9 @@ onMounted(() => {
   root.value.addEventListener('wheel', onWheel, { passive: false })
 
   term.onData((data) => {
+    for (const cmd of lineBuf.feed(data)) {
+      void app.pushCommandHistory(props.hostId, cmd)
+    }
     window.api.session.write(props.sessionId, data)
   })
 
@@ -187,6 +193,7 @@ watch(
   () => props.sessionId,
   () => {
     // 重连后 sessionId 变化，终端组件需由父级用 :key 重建；此处保底清屏
+    lineBuf.clear()
     term?.reset()
   }
 )

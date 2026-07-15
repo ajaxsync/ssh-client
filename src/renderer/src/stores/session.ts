@@ -31,7 +31,6 @@ export const useSessionStore = defineStore('session', () => {
   const panel = ref<MainPanel>('terminal')
   const connecting = ref(false)
   const connectingHostId = ref<string | null>(null)
-  const showSnippets = ref(false)
 
   const activeTab = computed(() => tabs.value.find((t) => t.sessionId === activeSessionId.value))
 
@@ -95,31 +94,45 @@ export const useSessionStore = defineStore('session', () => {
       return
     }
 
-    if (tab.reconnectAttempts >= app.settings.autoReconnectMaxAttempts) {
-      tab.closed = true
-      tab.error = '自动重连次数已用尽'
-      return
-    }
-
     tab.reconnecting = true
-    tab.reconnectAttempts += 1
+    tab.error = undefined
+    const max = app.settings.autoReconnectMaxAttempts
     const delay = app.settings.autoReconnectDelayMs
-    await new Promise((r) => setTimeout(r, delay))
+    let lastError = ''
 
-    try {
-      const res = await window.api.session.connect({ hostId: tab.hostId })
-      if (!res.ok) throw new Error(res.error)
-      const oldId = tab.sessionId
-      tab.sessionId = res.data.sessionId
-      tab.closed = false
-      tab.error = undefined
-      tab.reconnecting = false
-      if (activeSessionId.value === oldId) activeSessionId.value = tab.sessionId
-    } catch (error) {
-      tab.reconnecting = false
-      tab.closed = true
-      tab.error = error instanceof Error ? error.message : String(error)
+    while (tab.reconnectAttempts < max) {
+      // 用户可能在重连过程中主动关闭标签
+      if (tab.intentionalClose || !tabs.value.some((t) => t.sessionId === sessionId || t === tab)) {
+        tab.reconnecting = false
+        return
+      }
+
+      tab.reconnectAttempts += 1
+      await new Promise((r) => setTimeout(r, delay))
+
+      if (tab.intentionalClose) {
+        tab.reconnecting = false
+        return
+      }
+
+      try {
+        const res = await window.api.session.connect({ hostId: tab.hostId })
+        if (!res.ok) throw new Error(res.error)
+        const oldId = tab.sessionId
+        tab.sessionId = res.data.sessionId
+        tab.closed = false
+        tab.error = undefined
+        tab.reconnecting = false
+        if (activeSessionId.value === oldId) activeSessionId.value = tab.sessionId
+        return
+      } catch (error) {
+        lastError = error instanceof Error ? error.message : String(error)
+      }
     }
+
+    tab.reconnecting = false
+    tab.closed = true
+    tab.error = lastError || '自动重连次数已用尽'
   }
 
   function markError(sessionId: string, message: string): void {
@@ -141,13 +154,6 @@ export const useSessionStore = defineStore('session', () => {
     activeSessionId.value = null
   }
 
-  function insertSnippet(command: string): void {
-    const tab = activeTab.value
-    if (!tab || tab.closed) return
-    const payload = command.endsWith('\n') ? command : command + '\n'
-    window.api.session.write(tab.sessionId, payload)
-  }
-
   return {
     tabs,
     activeSessionId,
@@ -155,7 +161,6 @@ export const useSessionStore = defineStore('session', () => {
     panel,
     connecting,
     connectingHostId,
-    showSnippets,
     connect,
     connectSameHost,
     closeTab,
@@ -163,7 +168,6 @@ export const useSessionStore = defineStore('session', () => {
     markError,
     setActive,
     setPanel,
-    clearAll,
-    insertSnippet
+    clearAll
   }
 })

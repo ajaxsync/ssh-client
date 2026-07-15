@@ -1,9 +1,10 @@
 import { randomUUID } from 'crypto'
 import { BrowserWindow } from 'electron'
-import { createWriteStream, createReadStream, readFileSync, existsSync } from 'fs'
+import { createWriteStream, createReadStream, readFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'fs'
 import { basename, join, posix } from 'path'
 import { Client, SFTPWrapper, ConnectConfig, ClientChannel } from 'ssh2'
 import { AppSettings, HostConfig, SftpEntry, SftpListResult, TransferProgress } from '../shared/types'
+import { createHostVerifier } from './host-keys'
 import { expandHome } from './host-utils'
 import { store } from './store/encrypted-store'
 import { metricsCollector } from './metrics-collector'
@@ -250,6 +251,74 @@ export class SessionManager {
   }
 
   async upload(sessionId: string, localPath: string, remoteDir: string): Promise<string> {
+    const st = statSync(localPath)
+    if (st.isDirectory()) {
+      const name = basename(localPath)
+      const remoteRoot = posix.join(remoteDir.replace(/\/$/, '') || '/', name)
+      await this.mkdirRecursive(sessionId, remoteRoot)
+      await this.uploadDir(sessionId, localPath, remoteRoot)
+      return remoteRoot
+    }
+    return this.uploadFile(sessionId, localPath, remoteDir)
+  }
+
+  async download(sessionId: string, remotePath: string, localDir: string): Promise<string> {
+    const sftp = this.requireSftp(sessionId)
+    const attrs = await new Promise<import('ssh2').Stats>((resolve, reject) => {
+      sftp.stat(remotePath, (err, stats) => (err ? reject(err) : resolve(stats)))
+    })
+    if (attrs.isDirectory()) {
+      const name = basename(remotePath)
+      const localRoot = join(localDir, name)
+      mkdirSync(localRoot, { recursive: true })
+      await this.downloadDir(sessionId, remotePath, localRoot)
+      return localRoot
+    }
+    return this.downloadFile(sessionId, remotePath, localDir)
+  }
+
+  private async mkdirRecursive(sessionId: string, remotePath: string): Promise<void> {
+    const parts = remotePath.split('/').filter(Boolean)
+    let cur = remotePath.startsWith('/') ? '/' : ''
+    for (const part of parts) {
+      cur = cur === '/' ? `/${part}` : `${cur}/${part}`
+      try {
+        await this.mkdir(sessionId, cur)
+      } catch {
+        /* may already exist */
+      }
+    }
+  }
+
+  private async uploadDir(sessionId: string, localDir: string, remoteDir: string): Promise<void> {
+    for (const name of readdirSync(localDir)) {
+      const local = join(localDir, name)
+      const st = statSync(local)
+      if (st.isDirectory()) {
+        const remote = posix.join(remoteDir, name)
+        await this.mkdirRecursive(sessionId, remote)
+        await this.uploadDir(sessionId, local, remote)
+      } else {
+        await this.uploadFile(sessionId, local, remoteDir)
+      }
+    }
+  }
+
+  private async downloadDir(sessionId: string, remoteDir: string, localDir: string): Promise<void> {
+    const listed = await this.list(sessionId, remoteDir)
+    for (const entry of listed.entries) {
+      if (entry.name === '.' || entry.name === '..') continue
+      if (entry.isDirectory) {
+        const nextLocal = join(localDir, entry.name)
+        mkdirSync(nextLocal, { recursive: true })
+        await this.downloadDir(sessionId, entry.path, nextLocal)
+      } else {
+        await this.downloadFile(sessionId, entry.path, localDir)
+      }
+    }
+  }
+
+  private async uploadFile(sessionId: string, localPath: string, remoteDir: string): Promise<string> {
     const sftp = this.requireSftp(sessionId)
     const filename = basename(localPath)
     const remotePath = posix.join(remoteDir.replace(/\/$/, '') || '/', filename)
@@ -280,7 +349,7 @@ export class SessionManager {
     return remotePath
   }
 
-  async download(sessionId: string, remotePath: string, localDir: string): Promise<string> {
+  private async downloadFile(sessionId: string, remotePath: string, localDir: string): Promise<string> {
     const sftp = this.requireSftp(sessionId)
     const filename = basename(remotePath)
     const localPath = join(localDir, filename)
@@ -356,12 +425,15 @@ export class SessionManager {
   }
 
   private buildAuthConfig(host: HostConfig, keepaliveInterval: number): ConnectConfig {
+    const port = host.port || 22
     const base: ConnectConfig = {
       host: host.host,
-      port: host.port || 22,
+      port,
       username: host.username,
       readyTimeout: 25000,
-      keepaliveInterval: keepaliveInterval > 0 ? keepaliveInterval : undefined
+      keepaliveInterval: keepaliveInterval > 0 ? keepaliveInterval : undefined,
+      hostHash: 'sha256',
+      hostVerifier: createHostVerifier(host.host, port, () => this.window)
     }
     if (host.authType === 'password') {
       return { ...base, password: host.password || '' }

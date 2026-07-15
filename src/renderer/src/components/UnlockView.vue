@@ -54,7 +54,7 @@ async function unlockWithoutPassword(): Promise<void> {
 
 async function forgotPassword(): Promise<void> {
   const yes = window.confirm(
-    "主密码无法找回（本地加密）。\n\n清空保险库将删除全部主机、片段、书签等数据，且不可恢复。\n\n确定清空并重新开始？",
+    "主密码无法找回（本地加密）。\n\n清空将删除全部主机、书签、命令历史等数据，且不可恢复。\n\n确定清空并重新开始？",
   );
   if (!yes) return;
   const again = window.confirm("请再次确认：真的要清空全部本地数据吗？");

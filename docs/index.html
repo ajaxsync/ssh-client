@@ -6,7 +6,7 @@
     <title>SSH Client Plus — 安全美观的 Windows SSH/SFTP 客户端</title>
     <meta
       name="description"
-      content="一款个人自用的 Electron SSH/SFTP 客户端，支持加密主机库、多标签连接、终端/SFTP/监控三合一、命令片段、跳板机、自动重连。"
+      content="一款个人自用的 Electron SSH/SFTP 客户端，支持加密主机库、多标签连接、终端/SFTP/监控三合一、按主机命令历史、跳板机、自动重连。"
     />
     <link rel="icon" type="image/png" href="assets/img/favicon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -55,7 +55,7 @@
     <!-- Hero -->
     <header id="top" class="hero">
       <div class="hero-content">
-        <div class="hero-badge">v1.0.0 · Windows</div>
+        <div class="hero-badge">Windows 版本已更新</div>
         <h1 class="hero-title">
           <span class="grad-text">远程连接</span>，从未如此
           <span class="grad-text-2">优雅</span>
@@ -252,9 +252,9 @@
               />
             </svg>
           </div>
-          <h3>命令片段</h3>
+          <h3>命令历史</h3>
           <p>
-            保存常用命令，一键插入当前终端。支持分类管理与搜索，告别重复输入。
+            终端与 SFTP 里输入过的命令按主机自动保存，下拉查看，一点即可复制，免去重复敲打。
           </p>
         </div>
         <div class="feature-card reveal">
@@ -425,7 +425,7 @@
           <div class="step-body">
             <h3>添加主机</h3>
             <p>
-              点击 + 号添加主机，或从 <code>~/.ssh/config</code> 与 CSV
+              点击 + 号添加主机，或从 <code>~/.ssh/config</code>
               批量导入。
             </p>
           </div>
@@ -540,7 +540,8 @@
           </button>
           <div class="faq-a">
             <p>
-              从 GitHub Releases 下载新安装包，直接覆盖安装即可。本机数据保存在
+              应用内可点击侧栏底部版本号检查更新；也可直接从 GitHub Releases
+              下载新安装包覆盖安装。本机数据保存在
               <code>%APPDATA%\ssh-client</code>，不会被安装程序清除。
             </p>
           </div>

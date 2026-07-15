@@ -239,7 +239,8 @@ h3 {
   min-height: 0;
   overflow: auto;
   margin: 14px 0;
-  padding-right: 4px;
+  /* 预留 focus 外扩阴影空间，避免被 overflow 裁切 */
+  padding: 4px 8px 4px 8px;
 }
 
 .grid {

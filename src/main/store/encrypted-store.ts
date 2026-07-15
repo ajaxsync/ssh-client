@@ -1,14 +1,14 @@
 import { app, safeStorage } from 'electron'
 import { createCipheriv, createDecipheriv, pbkdf2Sync, randomBytes, randomUUID, scryptSync } from 'crypto'
-import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'fs'
+import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync, copyFileSync } from 'fs'
 import { join } from 'path'
 import {
   AppSettings,
+  COMMAND_HISTORY_MAX,
   DEFAULT_SETTINGS,
   HostConfig,
   METRICS_LAYOUT_VERSION,
   SftpBookmark,
-  Snippet,
   TrashHostItem,
   VaultStatus,
   resolveMetricsLayout
@@ -17,7 +17,8 @@ import {
 interface VaultPayload {
   hosts: HostConfig[]
   settings: AppSettings
-  snippets: Snippet[]
+  /** hostId → 命令列表（最近在前） */
+  commandHistory: Record<string, string[]>
   bookmarks: SftpBookmark[]
   trashHosts: TrashHostItem[]
 }
@@ -54,7 +55,20 @@ function makeVerifier(key: Buffer): string {
   return scryptSync(key, 'ssh-client-verifier', 32).toString('hex')
 }
 
-function normalizeVault(data: Partial<VaultPayload>): VaultPayload {
+function normalizeCommandHistory(raw: unknown): Record<string, string[]> {
+  if (!raw || typeof raw !== 'object') return {}
+  const out: Record<string, string[]> = {}
+  for (const [hostId, list] of Object.entries(raw as Record<string, unknown>)) {
+    if (!hostId || !Array.isArray(list)) continue
+    out[hostId] = list
+      .filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+      .map((x) => x.trim())
+      .slice(0, COMMAND_HISTORY_MAX)
+  }
+  return out
+}
+
+function normalizeVault(data: Partial<VaultPayload> & { snippets?: unknown }): VaultPayload {
   const settings = { ...DEFAULT_SETTINGS, ...(data.settings ?? {}) }
   return {
     hosts: data.hosts ?? [],
@@ -63,7 +77,7 @@ function normalizeVault(data: Partial<VaultPayload>): VaultPayload {
       metricsLayout: resolveMetricsLayout(settings.metricsLayout, settings.metricsLayoutVersion),
       metricsLayoutVersion: METRICS_LAYOUT_VERSION
     },
-    snippets: data.snippets ?? [],
+    commandHistory: normalizeCommandHistory(data.commandHistory),
     bookmarks: data.bookmarks ?? [],
     trashHosts: data.trashHosts ?? []
   }
@@ -73,6 +87,30 @@ export class EncryptedStore {
   private key: Buffer | null = null
   private cache: VaultPayload | null = null
   private protection: VaultProtection = 'password'
+  private unlockFailures = 0
+  private unlockLockedUntil = 0
+
+  private assertUnlockAllowed(): void {
+    const now = Date.now()
+    if (now < this.unlockLockedUntil) {
+      const wait = Math.ceil((this.unlockLockedUntil - now) / 1000)
+      throw new Error(`尝试过多，请 ${wait} 秒后再试`)
+    }
+  }
+
+  private recordUnlockFailure(): void {
+    this.unlockFailures += 1
+    if (this.unlockFailures >= 5) {
+      this.unlockLockedUntil = Date.now() + 30_000
+      this.unlockFailures = 0
+      throw new Error('尝试过多，请 30 秒后再试')
+    }
+  }
+
+  private recordUnlockSuccess(): void {
+    this.unlockFailures = 0
+    this.unlockLockedUntil = 0
+  }
 
   isInitialized(): boolean {
     return existsSync(vaultPath())
@@ -138,6 +176,7 @@ export class EncryptedStore {
   }
 
   unlock(password: string): void {
+    this.assertUnlockAllowed()
     if (!this.isInitialized()) {
       throw new Error('尚未初始化保险库')
     }
@@ -147,11 +186,18 @@ export class EncryptedStore {
     }
     const salt = Buffer.from(raw.salt, 'hex')
     const key = deriveKey(password, salt)
-    this.openWithKey(key, raw)
-    this.protection = 'password'
+    try {
+      this.openWithKey(key, raw)
+      this.protection = 'password'
+      this.recordUnlockSuccess()
+    } catch (error) {
+      this.recordUnlockFailure()
+      throw error
+    }
   }
 
   unlockOs(): void {
+    this.assertUnlockAllowed()
     if (!this.isInitialized()) {
       throw new Error('尚未初始化保险库')
     }
@@ -169,11 +215,18 @@ export class EncryptedStore {
     try {
       keyB64 = safeStorage.decryptString(Buffer.from(raw.wrappedKey, 'base64'))
     } catch {
+      this.recordUnlockFailure()
       throw new Error('本机密钥解密失败（可能换过 Windows 用户或系统），请重置保险库')
     }
     const key = Buffer.from(keyB64, 'base64')
-    this.openWithKey(key, raw, '本机密钥无效，请重置保险库')
-    this.protection = 'os'
+    try {
+      this.openWithKey(key, raw, '本机密钥无效，请重置保险库')
+      this.protection = 'os'
+      this.recordUnlockSuccess()
+    } catch (error) {
+      this.recordUnlockFailure()
+      throw error
+    }
   }
 
   /** 忘记主密码：删除保险库，不可恢复 */
@@ -221,6 +274,7 @@ export class EncryptedStore {
     if (!host) return
     this.cache!.hosts = this.cache!.hosts.filter((h) => h.id !== id)
     this.cache!.bookmarks = this.cache!.bookmarks.filter((b) => b.hostId !== id)
+    delete this.cache!.commandHistory[id]
     for (const h of this.cache!.hosts) {
       if (h.jumpHostId === id) h.jumpHostId = undefined
     }
@@ -306,24 +360,24 @@ export class EncryptedStore {
     return structuredClone(this.cache!.settings)
   }
 
-  listSnippets(): Snippet[] {
+  listCommandHistory(hostId: string): string[] {
     this.ensureUnlocked()
-    return structuredClone(this.cache!.snippets)
+    return structuredClone(this.cache!.commandHistory[hostId] ?? [])
   }
 
-  saveSnippet(snippet: Snippet): Snippet {
+  pushCommandHistory(hostId: string, command: string): string[] {
     this.ensureUnlocked()
-    const idx = this.cache!.snippets.findIndex((s) => s.id === snippet.id)
-    if (idx >= 0) this.cache!.snippets[idx] = snippet
-    else this.cache!.snippets.push(snippet)
+    const cmd = command.trim()
+    if (!hostId || !cmd) {
+      return structuredClone(this.cache!.commandHistory[hostId] ?? [])
+    }
+    const prev = this.cache!.commandHistory[hostId] ?? []
+    this.cache!.commandHistory[hostId] = [cmd, ...prev.filter((c) => c !== cmd)].slice(
+      0,
+      COMMAND_HISTORY_MAX
+    )
     this.persist()
-    return structuredClone(snippet)
-  }
-
-  deleteSnippet(id: string): void {
-    this.ensureUnlocked()
-    this.cache!.snippets = this.cache!.snippets.filter((s) => s.id !== id)
-    this.persist()
+    return structuredClone(this.cache!.commandHistory[hostId])
   }
 
   listBookmarks(hostId?: string): SftpBookmark[] {
@@ -369,6 +423,20 @@ export class EncryptedStore {
     if (!this.isUnlocked()) throw new Error('保险库未解锁')
   }
 
+  /** 导出已加密 vault.dat 副本（不含当前内存密钥） */
+  exportTo(destPath: string): void {
+    const src = vaultPath()
+    if (!existsSync(src)) throw new Error('保险库文件不存在')
+    copyFileSync(src, destPath)
+  }
+
+  /** 用备份覆盖本地库，导入后需重新解锁 */
+  importFrom(srcPath: string): void {
+    if (!existsSync(srcPath)) throw new Error('备份文件不存在')
+    this.lock()
+    copyFileSync(srcPath, vaultPath())
+  }
+
   private persist(existingSalt?: Buffer): void {
     if (!this.key || !this.cache) throw new Error('无法保存')
     let salt = existingSalt
@@ -401,7 +469,8 @@ export class EncryptedStore {
       file.wrappedKey = safeStorage.encryptString(this.key.toString('base64')).toString('base64')
     }
 
-    writeFileSync(vaultPath(), JSON.stringify(file), 'utf8')
+    writeFileSync(vaultPath() + '.tmp', JSON.stringify(file), 'utf8')
+    renameSync(vaultPath() + '.tmp', vaultPath())
   }
 }
 

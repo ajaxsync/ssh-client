@@ -11,10 +11,13 @@
 - ProxyJump 跳板机
 - 可配置 Keepalive + 断线自动重连
 - 多连接标签、每连接内切换终端 / SFTP / 监控
-- 命令片段抽屉
-- 主机导入（`~/.ssh/config` / CSV）
+- 按主机记录的命令历史（终端 / SFTP 自动收集）
+- 主机导入（`~/.ssh/config`，支持 Include / ProxyJump）
+- 手动检查更新（对照 GitHub Releases）
+- 数据备份 / 从备份恢复
+- 主机密钥校验（known_hosts）
 - 标签颜色与备注
-- SFTP：浏览 / 上传下载 / 拖拽上传 / 路径书签
+- SFTP：浏览 / 上传下载（含目录）/ 拖拽上传 / 路径书签
 - 字体与深 / 浅玻璃主题
 
 ---
@@ -23,15 +26,15 @@
 
 ### 方式一：安装包（推荐）
 
-1. 运行 `dist/ssh-client-1.0.0-setup.exe` 完成安装。
+1. 运行 `dist/ssh-client-plus-x.x.x-setup.exe` 完成安装。
 2. 从开始菜单或桌面快捷方式打开 **SSH Client Plus**。
 
 ### 方式二：免安装
 
-解压 `dist/SSH Client Plus-1.0.0-win.zip`，或打包后直接使用：
+解压 `dist/SSH Client Plus-x.x.x-win.zip`，或打包后直接使用：
 
 ```text
-dist/win-unpacked/SSHClient.exe
+dist/win-unpacked/SSHClientPlus.exe
 ```
 
 ### 首次使用
@@ -54,7 +57,7 @@ dist/win-unpacked/SSHClient.exe
 ┌─────────────┬──────────────────────────────────────────┐
 │  主机侧栏    │  [连接标签 …]              [+ 新连接]     │
 │  搜索/添加   ├──────────────────────────────────────────┤
-│  主机列表    │  连接名 · 终端 | SFTP | 监控      [片段]  │
+│  主机列表    │  连接名 · 终端 | SFTP | 监控      [历史]  │
 │  设置/回收站 │  ─────────────────────────────────────── │
 │             │  终端 / 文件 / 监控内容区                 │
 └─────────────┴──────────────────────────────────────────┘
@@ -63,6 +66,7 @@ dist/win-unpacked/SSHClient.exe
 - **顶栏标签**：每条标签 = 一条独立的 SSH 连接。
 - **终端 | SFTP | 监控**：属于当前选中连接，切换视图不会断开连接。
 - **+ 新连接**：为当前主机再建一条 SSH 连接（新标签）。
+- **历史**：查看当前主机自动记录的命令，点击复制。
 
 ### 主机管理
 
@@ -73,9 +77,9 @@ dist/win-unpacked/SSHClient.exe
 | 搜索框          | 按名称、地址、分组过滤                |
 | **+**           | 添加新主机                            |
 | **导入 Config** | 从 `~/.ssh/config` 导入               |
-| **导入 CSV**    | 从 CSV 批量导入                       |
 | **设置**        | 终端字体、主题、Keepalive、自动重连等 |
 | **回收站**      | 误删主机可还原                        |
+| 侧栏底部版本号  | 点击检查 GitHub Releases 是否有新版本 |
 
 添加主机时可配置：地址、端口、用户名、密码或私钥路径、跳板机、标签颜色、备注等。
 
@@ -102,10 +106,11 @@ dist/win-unpacked/SSHClient.exe
 
 - 在连接内切换到 **监控** 标签，查看 CPU、内存、磁盘、网络、进程、端口、服务等（需 SSH 会话可用）。
 
-### 命令片段
+### 命令历史
 
-- 终端视图下点击 **片段**，可保存常用命令并一键插入当前终端。
-- 支持分类与搜索。
+- 终端回车发送的命令、SFTP 路径栏中的 `cd` 命令会自动记入**当前主机**历史（纯路径跳转不记）。
+- 点 **历史** 打开下拉列表；点击一项即复制，提示「指令已复制」。
+- 每主机最多保留最近 50 条，相同命令会提到最前；删除主机时一并清除。
 
 ### 连接标签
 
@@ -127,7 +132,7 @@ dist/win-unpacked/SSHClient.exe
 
 ## 数据存储
 
-主机、片段、书签、设置等保存在本机加密保险库中，**不会**打入安装包。
+主机、命令历史、书签、设置等保存在本机加密数据文件中，**不会**打入安装包。
 
 | 项目         | 位置                                   |
 | ------------ | -------------------------------------- |
@@ -145,12 +150,11 @@ dist/win-unpacked/SSHClient.exe
 
 ## 升级
 
-当前版本**未内置自动更新**。获取新版本的方式：
+1. 侧栏底部点击版本号可**检查更新**；若有新版本会显示轻量提示，可前往 GitHub Releases 下载。
+2. 也可直接打开 [Releases](https://github.com/ajaxsync/ssh-client/releases) 下载安装包。
+3. 安装覆盖即可；本机账号与主机数据在 `%APPDATA%\ssh-client`，一般不会被安装程序清除。
 
-1. 从仓库 [Releases](https://github.com/ajaxsync/ssh-client/releases)（或作者提供的下载地址）下载新的安装包。
-2. 直接安装覆盖即可；本机账号与主机数据在 `%APPDATA%\ssh-client`，一般不会被安装程序清除。
-
-如需应用内「检查更新 / 一键升级」，可后续接入 `electron-updater` + GitHub Releases。
+应用内检查更新仅对照 GitHub Releases 最新版本并跳转下载页，**不会自动下载或安装**。
 
 ---
 
@@ -173,7 +177,7 @@ pnpm preview      # 以生产构建启动 Electron，用于打包前验证
 
 ```bash
 pnpm dist         # 安装包 + zip
-pnpm dist:dir     # 仅解包目录，可直接运行 dist/win-unpacked/SSHClient.exe
+pnpm dist:dir     # 仅解包目录，可直接运行 dist/win-unpacked/SSHClientPlus.exe
 ```
 
 打包前建议：

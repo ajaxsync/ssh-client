@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import type { SftpBookmark, SftpEntry, TransferProgress } from '../../../shared/types'
 import { useAppStore } from '../stores/app'
 import { useToastStore } from '../stores/toast'
+import { isSftpCommandInput } from '../lib/command-history'
 import GlassTip from './ui/GlassTip.vue'
 import GlassStatusToast from './ui/GlassStatusToast.vue'
 
@@ -180,13 +181,17 @@ async function navigateTo(target: string): Promise<boolean> {
 }
 
 async function submitPathDraft(): Promise<void> {
-  const next = parseGotoInput(pathDraft.value)
+  const raw = pathDraft.value.trim()
+  const next = parseGotoInput(raw)
   if (!next) {
     toast.error('请输入有效路径或 cd 命令')
     return
   }
   const ok = await navigateTo(next)
   if (ok) {
+    if (isSftpCommandInput(raw)) {
+      void app.pushCommandHistory(props.hostId, raw)
+    }
     pathEditing.value = false
     showPathSuggest.value = false
     syncPathDraft()
