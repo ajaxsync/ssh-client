@@ -1,0 +1,629 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SSH Client Plus — 安全美观的 Windows SSH/SFTP 客户端</title>
+    <meta
+      name="description"
+      content="一款个人自用的 Electron SSH/SFTP 客户端，支持加密主机库、多标签连接、终端/SFTP/监控三合一、命令片段、跳板机、自动重连。"
+    />
+    <link rel="icon" type="image/png" href="assets/img/favicon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700;800&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="assets/style.css" />
+  </head>
+  <body>
+    <!-- 背景层 -->
+    <div class="bg-layer">
+      <div class="bg-grid"></div>
+      <div class="bg-glow glow-1"></div>
+      <div class="bg-glow glow-2"></div>
+      <div class="bg-glow glow-3"></div>
+    </div>
+
+    <!-- 导航栏 -->
+    <nav class="nav">
+      <a href="#top" class="nav-brand">
+        <img
+          src="assets/img/favicon.png"
+          alt="SSH Client Plus"
+          class="nav-logo"
+        />
+        <span>SSH Client Plus</span>
+      </a>
+      <div class="nav-links">
+        <a href="#features">功能</a>
+        <a href="#screenshots">截图</a>
+        <a href="#quickstart">快速开始</a>
+        <a href="#faq">FAQ</a>
+      </div>
+      <a
+        href="https://github.com/ajaxsync/ssh-client/releases"
+        target="_blank"
+        rel="noopener"
+        class="nav-download"
+      >
+        下载
+      </a>
+    </nav>
+
+    <!-- Hero -->
+    <header id="top" class="hero">
+      <div class="hero-content">
+        <div class="hero-badge">v1.0.0 · Windows</div>
+        <h1 class="hero-title">
+          <span class="grad-text">远程连接</span>，从未如此
+          <span class="grad-text-2">优雅</span>
+        </h1>
+        <p class="hero-subtitle">
+          一款安全、美观、易用的 SSH/SFTP
+          桌面客户端。加密主机库、多标签管理、终端/SFTP/监控三合一——
+          为追求高效与品质的你而生。
+        </p>
+        <div class="hero-actions">
+          <a
+            href="https://github.com/ajaxsync/ssh-client/releases"
+            target="_blank"
+            rel="noopener"
+            class="btn-primary"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M12 3v12m0 0l4-4m-4 4l-4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            下载安装包
+          </a>
+          <a
+            href="https://github.com/ajaxsync/ssh-client"
+            target="_blank"
+            rel="noopener"
+            class="btn-ghost"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                d="M12 2C6.48 2 2 6.48 2 12c0 4.42 2.87 8.17 6.84 9.5.5.09.66-.22.66-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.1-1.47-1.1-1.47-.9-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.1-4.55-4.92 0-1.1.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.56 9.56 0 015 0c1.91-1.3 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.58 1.03 2.68 0 3.83-2.33 4.67-4.56 4.92.36.31.68.92.68 1.85v2.74c0 .27.16.58.67.48A10 10 0 0022 12c0-5.52-4.48-10-10-10z"
+              />
+            </svg>
+            查看源码
+          </a>
+        </div>
+      </div>
+
+      <!-- Hero 预览图 -->
+      <div class="hero-preview">
+        <div class="preview-frame">
+          <div class="preview-bar">
+            <span class="dot-r"></span>
+            <span class="dot-y"></span>
+            <span class="dot-g"></span>
+          </div>
+          <div class="preview-body">
+            <div class="preview-sidebar">
+              <div class="ps-logo">
+                <img src="assets/img/favicon.png" alt="" />
+                <span>SSH-Client-Plus</span>
+              </div>
+              <div class="ps-search"></div>
+              <div class="ps-host active"></div>
+              <div class="ps-host"></div>
+              <div class="ps-host"></div>
+            </div>
+            <div class="preview-main">
+              <div class="pm-tabs">
+                <div class="pm-tab active"></div>
+                <div class="pm-tab"></div>
+              </div>
+              <div class="pm-content">
+                <div class="pm-line"></div>
+                <div class="pm-line short"></div>
+                <div class="pm-line"></div>
+                <div class="pm-line mid"></div>
+                <div class="pm-line"></div>
+                <div class="pm-cursor"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- 功能特性 -->
+    <section id="features" class="section">
+      <div class="section-head">
+        <h2 class="section-title">核心功能</h2>
+        <p class="section-desc">
+          从加密存储到文件传输，一切你需要的远程管理能力
+        </p>
+      </div>
+      <div class="feature-grid">
+        <div class="feature-card reveal">
+          <div class="fc-icon">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path
+                d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-4z"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M9 12l2 2 4-4"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </div>
+          <h3>加密主机库</h3>
+          <p>
+            主密码保护，所有主机信息本地加密存储。支持 Windows
+            凭据保护实现本机免密进入。
+          </p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="fc-icon">
+            <svg viewBox="0 0 24 24" fill="none">
+              <rect
+                x="3"
+                y="4"
+                width="18"
+                height="14"
+                rx="2"
+                stroke="currentColor"
+                stroke-width="1.6"
+              />
+              <path
+                d="M3 9h18M8 4v5"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+              />
+            </svg>
+          </div>
+          <h3>多标签连接</h3>
+          <p>
+            每条标签对应一条独立 SSH
+            连接。同一主机可开多条连接，标签颜色与备注一目了然。
+          </p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="fc-icon">
+            <svg viewBox="0 0 24 24" fill="none">
+              <rect
+                x="3"
+                y="4"
+                width="18"
+                height="16"
+                rx="2"
+                stroke="currentColor"
+                stroke-width="1.6"
+              />
+              <path
+                d="M8 10h8M8 14h5"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+              />
+              <circle
+                cx="17"
+                cy="15"
+                r="1.5"
+                stroke="currentColor"
+                stroke-width="1.6"
+              />
+            </svg>
+          </div>
+          <h3>终端 / SFTP / 监控</h3>
+          <p>
+            每条连接内自由切换终端、文件管理、系统监控。切换视图不断开连接，高效流畅。
+          </p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="fc-icon">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path
+                d="M5 7h14M10 11v6M14 11v6M8.5 7l.6-2.2A1 1 0 0110.1 4h3.8a1 1 0 011 .8L15.5 7M7 7l.8 11.2A1.5 1.5 0 009.3 19.5h5.4a1.5 1.5 0 001.5-1.3L17 7"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </div>
+          <h3>命令片段</h3>
+          <p>
+            保存常用命令，一键插入当前终端。支持分类管理与搜索，告别重复输入。
+          </p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="fc-icon">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path
+                d="M12 15V3m0 0L8 7m4-4l4 4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </div>
+          <h3>拖拽上传</h3>
+          <p>SFTP 视图支持拖拽文件直接上传到当前目录，操作直觉，传输高效。</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="fc-icon">
+            <svg viewBox="0 0 24 24" fill="none">
+              <circle
+                cx="6"
+                cy="6"
+                r="3"
+                stroke="currentColor"
+                stroke-width="1.6"
+              />
+              <circle
+                cx="18"
+                cy="18"
+                r="3"
+                stroke="currentColor"
+                stroke-width="1.6"
+              />
+              <path
+                d="M9 6h6a3 3 0 013 3v3M15 18H9a3 3 0 01-3-3v-3"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+              />
+            </svg>
+          </div>
+          <h3>ProxyJump 跳板机</h3>
+          <p>通过跳板机安全访问内网服务器，连接前自动预检可达性与私钥。</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="fc-icon">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path
+                d="M21 12a9 9 0 11-3.5-7.1L21 3v6h-6"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </div>
+          <h3>自动重连</h3>
+          <p>可配置 Keepalive 心跳与断线自动重连，网络波动不再打断工作流。</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="fc-icon">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path
+                d="M12 3a9 9 0 109 9c0-.46-.04-.92-.1-1.36a5.39 5.39 0 01-4.4 2.36 5.4 5.4 0 01-3.14-9.8c-.44-.1-.9-.2-1.36-.2z"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </div>
+          <h3>深 / 浅玻璃主题</h3>
+          <p>
+            精心打磨的玻璃拟态界面，深色与浅色双主题自由切换，视觉舒适不打折扣。
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 截图展示 -->
+    <section id="screenshots" class="section">
+      <div class="section-head">
+        <h2 class="section-title">界面一览</h2>
+        <p class="section-desc">玻璃拟态设计，每一个细节都经过打磨</p>
+      </div>
+      <div class="screenshot-row">
+        <div class="shot-card reveal">
+          <div class="shot-mock mock-terminal">
+            <div class="mock-titlebar">
+              <span class="dot-r"></span><span class="dot-y"></span
+              ><span class="dot-g"></span>
+            </div>
+            <div class="mock-body">
+              <div class="mock-line w80"></div>
+              <div class="mock-line w60"></div>
+              <div class="mock-line w90"></div>
+              <div class="mock-line w40"></div>
+              <div class="mock-prompt">
+                user@host:~$ <span class="mock-cursor"></span>
+              </div>
+            </div>
+          </div>
+          <p class="shot-label">终端 — 命令行交互</p>
+        </div>
+        <div class="shot-card reveal">
+          <div class="shot-mock mock-sftp">
+            <div class="mock-titlebar">
+              <span class="dot-r"></span><span class="dot-y"></span
+              ><span class="dot-g"></span>
+            </div>
+            <div class="mock-body sftp-grid">
+              <div class="mock-file"></div>
+              <div class="mock-file"></div>
+              <div class="mock-file"></div>
+              <div class="mock-file"></div>
+              <div class="mock-file"></div>
+              <div class="mock-file"></div>
+              <div class="mock-file"></div>
+              <div class="mock-file"></div>
+            </div>
+          </div>
+          <p class="shot-label">SFTP — 可视化文件管理</p>
+        </div>
+        <div class="shot-card reveal">
+          <div class="shot-mock mock-metrics">
+            <div class="mock-titlebar">
+              <span class="dot-r"></span><span class="dot-y"></span
+              ><span class="dot-g"></span>
+            </div>
+            <div class="mock-body metrics-body">
+              <div class="metric-card"><div class="metric-bar h60"></div></div>
+              <div class="metric-card"><div class="metric-bar h80"></div></div>
+              <div class="metric-card"><div class="metric-bar h40"></div></div>
+              <div class="metric-card"><div class="metric-bar h70"></div></div>
+            </div>
+          </div>
+          <p class="shot-label">监控 — 系统资源一览</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 快速开始 -->
+    <section id="quickstart" class="section">
+      <div class="section-head">
+        <h2 class="section-title">快速开始</h2>
+        <p class="section-desc">四步即可开始你的远程连接之旅</p>
+      </div>
+      <div class="steps">
+        <div class="step reveal">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h3>下载安装</h3>
+            <p>从 GitHub Releases 下载安装包，双击运行即可完成安装。</p>
+          </div>
+        </div>
+        <div class="step reveal">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h3>设置主密码</h3>
+            <p>
+              首次启动设置主密码（至少 6
+              位），或开启本机自动解锁。数据加密存储在本地。
+            </p>
+          </div>
+        </div>
+        <div class="step reveal">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h3>添加主机</h3>
+            <p>
+              点击 + 号添加主机，或从 <code>~/.ssh/config</code> 与 CSV
+              批量导入。
+            </p>
+          </div>
+        </div>
+        <div class="step reveal">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <h3>开始连接</h3>
+            <p>点击主机卡片建立 SSH 连接，自由切换终端、SFTP 与监控视图。</p>
+          </div>
+        </div>
+      </div>
+      <div class="qs-download">
+        <a
+          href="https://github.com/ajaxsync/ssh-client/releases"
+          target="_blank"
+          rel="noopener"
+          class="btn-primary"
+        >
+          前往下载
+        </a>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section id="faq" class="section">
+      <div class="section-head">
+        <h2 class="section-title">常见问题</h2>
+        <p class="section-desc">你可能想知道的</p>
+      </div>
+      <div class="faq-list">
+        <div class="faq-item reveal">
+          <button class="faq-q" aria-expanded="false">
+            <span>打包后的 app 里为什么有我的测试账号？</span>
+            <span class="faq-arrow">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M6 9l6 6 6-6"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </span>
+          </button>
+          <div class="faq-a">
+            <p>
+              开发版与安装版共用
+              <code>%APPDATA%\ssh-client</code>
+              目录。换一台干净电脑安装即为空库。
+            </p>
+          </div>
+        </div>
+        <div class="faq-item reveal">
+          <button class="faq-q" aria-expanded="false">
+            <span>如何彻底清空本地数据？</span>
+            <span class="faq-arrow">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M6 9l6 6 6-6"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </span>
+          </button>
+          <div class="faq-a">
+            <p>
+              关闭应用后删除
+              <code>%APPDATA%\ssh-client</code>，或在解锁页重置保险库。
+            </p>
+          </div>
+        </div>
+        <div class="faq-item reveal">
+          <button class="faq-q" aria-expanded="false">
+            <span>忘记主密码怎么办？</span>
+            <span class="faq-arrow">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M6 9l6 6 6-6"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </span>
+          </button>
+          <div class="faq-a">
+            <p>
+              主密码无法找回，只能在解锁页重置保险库（会删除全部主机与设置）。
+            </p>
+          </div>
+        </div>
+        <div class="faq-item reveal">
+          <button class="faq-q" aria-expanded="false">
+            <span>如何升级到新版本？</span>
+            <span class="faq-arrow">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M6 9l6 6 6-6"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </span>
+          </button>
+          <div class="faq-a">
+            <p>
+              从 GitHub Releases 下载新安装包，直接覆盖安装即可。本机数据保存在
+              <code>%APPDATA%\ssh-client</code>，不会被安装程序清除。
+            </p>
+          </div>
+        </div>
+        <div class="faq-item reveal">
+          <button class="faq-q" aria-expanded="false">
+            <span>支持 macOS 或 Linux 吗？</span>
+            <span class="faq-arrow">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M6 9l6 6 6-6"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </span>
+          </button>
+          <div class="faq-a">
+            <p>当前版本仅面向 Windows 平台。未来可能扩展到 macOS 与 Linux。</p>
+          </div>
+        </div>
+        <div class="faq-item reveal">
+          <button class="faq-q" aria-expanded="false">
+            <span>数据安全吗？私钥会被保存吗？</span>
+            <span class="faq-arrow">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M6 9l6 6 6-6"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </span>
+          </button>
+          <div class="faq-a">
+            <p>
+              所有主机信息（含密码）经主密码加密后存储在本地。私钥仅保存文件路径，内容不会写入保险库。
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 页脚 -->
+    <footer class="footer">
+      <div class="footer-content">
+        <div class="footer-brand">
+          <img
+            src="assets/img/favicon.png"
+            alt="SSH Client Plus"
+            class="footer-logo"
+          />
+          <span>SSH Client Plus</span>
+        </div>
+        <p class="footer-desc">个人自用的 Electron SSH/SFTP 客户端</p>
+        <div class="footer-links">
+          <a
+            href="https://github.com/ajaxsync/ssh-client"
+            target="_blank"
+            rel="noopener"
+            >GitHub 仓库</a
+          >
+          <a
+            href="https://github.com/ajaxsync/ssh-client/releases"
+            target="_blank"
+            rel="noopener"
+            >Releases</a
+          >
+          <a
+            href="https://github.com/ajaxsync/ssh-client/issues"
+            target="_blank"
+            rel="noopener"
+            >问题反馈</a
+          >
+        </div>
+        <p class="footer-copy">© 2025 SSH Client Plus. All rights reserved.</p>
+      </div>
+    </footer>
+
+    <script src="assets/script.js"></script>
+  </body>
+</html>

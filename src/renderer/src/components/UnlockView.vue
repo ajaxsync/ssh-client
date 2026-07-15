@@ -1,74 +1,76 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { useAppStore } from '../stores/app'
-import { useToastStore } from '../stores/toast'
-import GlassField from './ui/GlassField.vue'
-import GlassTip from './ui/GlassTip.vue'
+import { computed, onMounted, ref } from "vue";
+import { useAppStore } from "../stores/app";
+import { useToastStore } from "../stores/toast";
+import GlassField from "./ui/GlassField.vue";
+import GlassTip from "./ui/GlassTip.vue";
 
-const app = useAppStore()
-const toast = useToastStore()
-const password = ref('')
-const confirmPassword = ref('')
-const booting = ref(true)
+const app = useAppStore();
+const toast = useToastStore();
+const password = ref("");
+const confirmPassword = ref("");
+const booting = ref(true);
 
-const isOsMode = computed(() => app.vault.protection === 'os')
-const showPasswordForm = computed(() => !app.vault.initialized || app.vault.protection === 'password')
+const isOsMode = computed(() => app.vault.protection === "os");
+const showPasswordForm = computed(
+  () => !app.vault.initialized || app.vault.protection === "password",
+);
 
 function fail(msg: string): void {
-  toast.error(msg || app.error || '操作失败')
+  toast.error(msg || app.error || "操作失败");
 }
 
 async function submit(): Promise<void> {
   if (!password.value || password.value.length < 6) {
-    fail('主密码至少 6 位')
-    return
+    fail("主密码至少 6 位");
+    return;
   }
   if (!app.vault.initialized) {
     if (password.value !== confirmPassword.value) {
-      fail('两次输入的主密码不一致')
-      return
+      fail("两次输入的主密码不一致");
+      return;
     }
-    const ok = await app.setup(password.value)
-    if (!ok) fail(app.error)
+    const ok = await app.setup(password.value);
+    if (!ok) fail(app.error);
   } else {
-    const ok = await app.unlock(password.value)
-    if (!ok) fail(app.error)
+    const ok = await app.unlock(password.value);
+    if (!ok) fail(app.error);
   }
 }
 
 async function setupWithoutPassword(): Promise<void> {
   if (!app.vault.osUnlockAvailable) {
-    fail('当前系统不支持本机自动解锁，请使用主密码')
-    return
+    fail("当前系统不支持本机自动解锁，请使用主密码");
+    return;
   }
-  const ok = await app.setupOs()
-  if (!ok) fail(app.error)
+  const ok = await app.setupOs();
+  if (!ok) fail(app.error);
 }
 
 async function unlockWithoutPassword(): Promise<void> {
-  const ok = await app.unlockOs()
-  if (!ok) fail(app.error)
+  const ok = await app.unlockOs();
+  if (!ok) fail(app.error);
 }
 
 async function forgotPassword(): Promise<void> {
   const yes = window.confirm(
-    '主密码无法找回（本地加密）。\n\n清空保险库将删除全部主机、片段、书签等数据，且不可恢复。\n\n确定清空并重新开始？'
-  )
-  if (!yes) return
-  const again = window.confirm('请再次确认：真的要清空全部本地数据吗？')
-  if (!again) return
-  const ok = await app.resetVault()
-  if (!ok) fail(app.error || '清空失败')
+    "主密码无法找回（本地加密）。\n\n清空保险库将删除全部主机、片段、书签等数据，且不可恢复。\n\n确定清空并重新开始？",
+  );
+  if (!yes) return;
+  const again = window.confirm("请再次确认：真的要清空全部本地数据吗？");
+  if (!again) return;
+  const ok = await app.resetVault();
+  if (!ok) fail(app.error || "清空失败");
 }
 
 onMounted(async () => {
-  await app.refreshStatus()
+  await app.refreshStatus();
   if (app.vault.canAutoUnlock) {
-    const ok = await app.tryAutoUnlock()
-    if (!ok) fail(app.error || '自动解锁失败')
+    const ok = await app.tryAutoUnlock();
+    if (!ok) fail(app.error || "自动解锁失败");
   }
-  booting.value = false
-})
+  booting.value = false;
+});
 </script>
 
 <template>
@@ -78,13 +80,15 @@ onMounted(async () => {
     <div class="card glass-panel">
       <div class="inner">
         <div class="mark">SSH</div>
-        <div class="brand">SSH Client</div>
+        <div class="brand">SSH Client Plus</div>
         <p class="desc">
           <template v-if="booting">正在准备…</template>
           <template v-else-if="!app.vault.initialized">
             首次使用：可设置主密码，或开启本机自动解锁（免输密码）
           </template>
-          <template v-else-if="isOsMode">本机保护模式，点击即可进入（无需主密码）</template>
+          <template v-else-if="isOsMode"
+            >本机保护模式，点击即可进入（无需主密码）</template
+          >
           <template v-else>输入主密码解锁本地主机库</template>
         </p>
 
@@ -97,7 +101,7 @@ onMounted(async () => {
             :disabled="app.busy"
             @click="unlockWithoutPassword"
           >
-            {{ app.busy ? '处理中…' : '进入' }}
+            {{ app.busy ? "处理中…" : "进入" }}
           </button>
           <button
             class="btn-glass forgot"
@@ -128,7 +132,13 @@ onMounted(async () => {
             />
           </GlassField>
           <button class="btn-accent submit" type="submit" :disabled="app.busy">
-            {{ app.busy ? '处理中…' : app.vault.initialized ? '解锁' : '创建并进入' }}
+            {{
+              app.busy
+                ? "处理中…"
+                : app.vault.initialized
+                  ? "解锁"
+                  : "创建并进入"
+            }}
           </button>
 
           <template v-if="!app.vault.initialized">
@@ -151,7 +161,8 @@ onMounted(async () => {
               </button>
             </GlassTip>
             <p class="os-hint">
-              数据仍加密保存在本机；由当前 Windows 用户凭据保护。登录此电脑的用户均可打开本库。
+              数据仍加密保存在本机；由当前 Windows
+              用户凭据保护。登录此电脑的用户均可打开本库。
             </p>
           </template>
 
@@ -260,7 +271,7 @@ onMounted(async () => {
 
 .divider::before,
 .divider::after {
-  content: '';
+  content: "";
   flex: 1;
   height: 1px;
   background: var(--glass-border);

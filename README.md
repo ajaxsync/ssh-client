@@ -1,8 +1,8 @@
-# SSH Client
+# SSH Client Plus
 
 个人自用的 Electron SSH / SFTP 客户端（Windows）。
 
-![SSH Client 预览](docs/preview.png)
+![SSH Client Plus 预览](docs/preview.png)
 
 ## 功能
 
@@ -24,11 +24,11 @@
 ### 方式一：安装包（推荐）
 
 1. 运行 `dist/ssh-client-1.0.0-setup.exe` 完成安装。
-2. 从开始菜单或桌面快捷方式打开 **SSH Client**。
+2. 从开始菜单或桌面快捷方式打开 **SSH Client Plus**。
 
 ### 方式二：免安装
 
-解压 `dist/SSH Client-1.0.0-win.zip`，或打包后直接使用：
+解压 `dist/SSH Client Plus-1.0.0-win.zip`，或打包后直接使用：
 
 ```text
 dist/win-unpacked/SSHClient.exe
@@ -66,16 +66,16 @@ dist/win-unpacked/SSHClient.exe
 
 ### 主机管理
 
-| 操作 | 说明 |
-|------|------|
-| 点击主机卡片 | 建立 SSH 连接并打开新标签 |
-| 悬浮卡片 | 显示编辑 / 删除按钮 |
-| 搜索框 | 按名称、地址、分组过滤 |
-| **+** | 添加新主机 |
-| **导入 Config** | 从 `~/.ssh/config` 导入 |
-| **导入 CSV** | 从 CSV 批量导入 |
-| **设置** | 终端字体、主题、Keepalive、自动重连等 |
-| **回收站** | 误删主机可还原 |
+| 操作            | 说明                                  |
+| --------------- | ------------------------------------- |
+| 点击主机卡片    | 建立 SSH 连接并打开新标签             |
+| 悬浮卡片        | 显示编辑 / 删除按钮                   |
+| 搜索框          | 按名称、地址、分组过滤                |
+| **+**           | 添加新主机                            |
+| **导入 Config** | 从 `~/.ssh/config` 导入               |
+| **导入 CSV**    | 从 CSV 批量导入                       |
+| **设置**        | 终端字体、主题、Keepalive、自动重连等 |
+| **回收站**      | 误删主机可还原                        |
 
 添加主机时可配置：地址、端口、用户名、密码或私钥路径、跳板机、标签颜色、备注等。
 
@@ -116,12 +116,12 @@ dist/win-unpacked/SSHClient.exe
 
 ## 快捷键
 
-| 快捷键 | 作用 |
-|--------|------|
-| Ctrl + F | 终端内搜索输出 |
-| Ctrl + C | 复制选区 / 发送中断 |
-| Ctrl + V | 粘贴 |
-| Ctrl + 滚轮 | 调节终端字号 |
+| 快捷键      | 作用                |
+| ----------- | ------------------- |
+| Ctrl + F    | 终端内搜索输出      |
+| Ctrl + C    | 复制选区 / 发送中断 |
+| Ctrl + V    | 粘贴                |
+| Ctrl + 滚轮 | 调节终端字号        |
 
 ---
 
@@ -129,10 +129,10 @@ dist/win-unpacked/SSHClient.exe
 
 主机、片段、书签、设置等保存在本机加密保险库中，**不会**打入安装包。
 
-| 项目 | 位置 |
-|------|------|
-| 用户数据目录 | `%APPDATA%\ssh-client\` |
-| 保险库文件 | `%APPDATA%\ssh-client\vault\vault.dat` |
+| 项目         | 位置                                   |
+| ------------ | -------------------------------------- |
+| 用户数据目录 | `%APPDATA%\ssh-client\`                |
+| 保险库文件   | `%APPDATA%\ssh-client\vault\vault.dat` |
 
 - **开发版**（`pnpm dev` / `pnpm preview`）与**安装版**在本机会共用同一目录，因此本机测试数据会出现在打包 app 中。
 - **其他电脑**首次安装为空库，走全新设置流程。
@@ -178,7 +178,7 @@ pnpm dist:dir     # 仅解包目录，可直接运行 dist/win-unpacked/SSHClien
 
 打包前建议：
 
-1. 关闭正在运行的 Electron / SSH Client 窗口。
+1. 关闭正在运行的 Electron / SSH Client Plus 窗口。
 2. 若遇 `EPERM` 重命名错误，删除 `dist\win-unpacked` 与 `dist\win-unpacked.tmp` 后重试。
 
 其他说明：

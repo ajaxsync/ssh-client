@@ -1,9 +1,9 @@
 {
-  "name": "ssh-client",
-  "version": "1.0.0",
+  "name": "ssh-client-plus",
+  "version": "1.0.1",
   "description": "Personal SSH & SFTP client built with Electron",
   "main": "./out/main/index.js",
-  "author": "ssh-client",
+  "author": "ajaxsync",
   "homepage": "https://github.com/ajaxsync/ssh-client",
   "scripts": {
     "dev": "electron-vite dev",

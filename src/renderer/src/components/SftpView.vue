@@ -1166,6 +1166,12 @@ onUnmounted(() => {
   min-width: 120px;
 }
 
+.path-field {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
 .path-field :deep(.glass-tip.wrap) {
   display: block;
   width: 100%;

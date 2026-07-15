@@ -1,21 +1,21 @@
 appId: com.sshclient.app
-productName: SSH Client
+productName: SSH Client Plus
 directories:
   buildResources: build
 files:
-  - '!**/.vscode/*'
-  - '!src/*'
-  - '!electron.vite.config.{js,ts,mjs,cjs}'
-  - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,CHANGELOG.md,README.md}'
-  - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
-  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  - "!**/.vscode/*"
+  - "!src/*"
+  - "!electron.vite.config.{js,ts,mjs,cjs}"
+  - "!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,CHANGELOG.md,README.md}"
+  - "!{.env,.env.*,.npmrc,pnpm-lock.yaml}"
+  - "!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}"
 asarUnpack:
   - resources/**
 win:
   target:
     - nsis
     - zip
-  executableName: SSHClient
+  executableName: SSHClientPlus
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}

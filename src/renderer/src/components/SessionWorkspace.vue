@@ -1,32 +1,32 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { TAB_COLORS } from '../../../shared/types'
-import { useSessionStore } from '../stores/session'
-import TerminalPanel from './TerminalPanel.vue'
-import SftpView from './SftpView.vue'
-import MetricsView from './MetricsView.vue'
-import GlassTip from './ui/GlassTip.vue'
-import { useToastStore } from '../stores/toast'
+import { computed } from "vue";
+import { TAB_COLORS } from "../../../shared/types";
+import { useSessionStore } from "../stores/session";
+import TerminalPanel from "./TerminalPanel.vue";
+import SftpView from "./SftpView.vue";
+import MetricsView from "./MetricsView.vue";
+import GlassTip from "./ui/GlassTip.vue";
+import { useToastStore } from "../stores/toast";
 
-const sessions = useSessionStore()
-const toasts = useToastStore()
+const sessions = useSessionStore();
+const toasts = useToastStore();
 
 const colorValue = computed(() => {
-  const id = sessions.activeTab?.color || 'default'
-  return TAB_COLORS.find((c) => c.id === id)?.value || '#6cb6ff'
-})
+  const id = sessions.activeTab?.color || "default";
+  return TAB_COLORS.find((c) => c.id === id)?.value || "#6cb6ff";
+});
 
 async function closeTab(sessionId: string, e: Event): Promise<void> {
-  e.stopPropagation()
-  await sessions.closeTab(sessionId)
+  e.stopPropagation();
+  await sessions.closeTab(sessionId);
 }
 
 async function newConnection(): Promise<void> {
   try {
-    await sessions.connectSameHost()
+    await sessions.connectSameHost();
   } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error)
-    toasts.error(msg, 8000)
+    const msg = error instanceof Error ? error.message : String(error);
+    toasts.error(msg, 8000);
   }
 }
 </script>
@@ -35,9 +35,12 @@ async function newConnection(): Promise<void> {
   <main class="workspace glass-panel">
     <div class="inner">
       <div v-if="!sessions.tabs.length" class="empty">
-        <div class="empty-mark">SSH</div>
+        <img class="empty-logo" src="/favicon.png" alt="SSH Client Plus" />
         <h2>准备连接</h2>
-        <p>从左侧选择主机开始。每个标签代表一条 SSH 连接，可在连接内切换终端、SFTP 与监控。</p>
+        <p>
+          从左侧选择主机开始。每个标签代表一条 SSH
+          连接，可在连接内切换终端、SFTP 与监控。
+        </p>
       </div>
 
       <template v-else>
@@ -52,15 +55,25 @@ async function newConnection(): Promise<void> {
               <button
                 type="button"
                 class="btn-tab hover-reveal-host"
-                :class="{ active: tab.sessionId === sessions.activeSessionId, closed: tab.closed }"
-                :style="{ '--tab-color': TAB_COLORS.find((c) => c.id === tab.color)?.value }"
+                :class="{
+                  active: tab.sessionId === sessions.activeSessionId,
+                  closed: tab.closed,
+                }"
+                :style="{
+                  '--tab-color': TAB_COLORS.find((c) => c.id === tab.color)
+                    ?.value,
+                }"
                 @click="sessions.setActive(tab.sessionId)"
               >
                 <span class="dot" />
                 <span class="label">{{ tab.title }}</span>
                 <span v-if="tab.reconnecting" class="badge">重连中</span>
                 <span v-else-if="tab.closed" class="badge">已断开</span>
-                <span class="close hover-reveal hover-reveal-inline" @click="closeTab(tab.sessionId, $event)">×</span>
+                <span
+                  class="close hover-reveal hover-reveal-inline"
+                  @click="closeTab(tab.sessionId, $event)"
+                  >×</span
+                >
               </button>
             </GlassTip>
           </div>
@@ -69,7 +82,11 @@ async function newConnection(): Promise<void> {
             <button
               type="button"
               class="btn-glass sm new-conn"
-              :disabled="!sessions.activeTab || sessions.activeTab.closed || sessions.connecting"
+              :disabled="
+                !sessions.activeTab ||
+                sessions.activeTab.closed ||
+                sessions.connecting
+              "
               @click="newConnection"
             >
               + 新连接
@@ -111,7 +128,9 @@ async function newConnection(): Promise<void> {
               <button
                 type="button"
                 class="btn-glass sm"
-                :disabled="sessions.activeTab.closed || sessions.panel !== 'terminal'"
+                :disabled="
+                  sessions.activeTab.closed || sessions.panel !== 'terminal'
+                "
                 @click="sessions.showSnippets = true"
               >
                 片段
@@ -122,13 +141,22 @@ async function newConnection(): Promise<void> {
           <div class="panes">
             <template v-for="tab in sessions.tabs" :key="tab.sessionId">
               <TerminalPanel
-                v-show="tab.sessionId === sessions.activeSessionId && sessions.panel === 'terminal'"
+                v-show="
+                  tab.sessionId === sessions.activeSessionId &&
+                  sessions.panel === 'terminal'
+                "
                 class="pane"
                 :tab="tab"
-                :active="tab.sessionId === sessions.activeSessionId && sessions.panel === 'terminal'"
+                :active="
+                  tab.sessionId === sessions.activeSessionId &&
+                  sessions.panel === 'terminal'
+                "
               />
               <div
-                v-show="tab.sessionId === sessions.activeSessionId && sessions.panel === 'sftp'"
+                v-show="
+                  tab.sessionId === sessions.activeSessionId &&
+                  sessions.panel === 'sftp'
+                "
                 class="pane"
               >
                 <SftpView
@@ -139,14 +167,18 @@ async function newConnection(): Promise<void> {
                 />
               </div>
               <div
-                v-show="tab.sessionId === sessions.activeSessionId && sessions.panel === 'metrics'"
+                v-show="
+                  tab.sessionId === sessions.activeSessionId &&
+                  sessions.panel === 'metrics'
+                "
                 class="pane"
               >
                 <MetricsView
                   v-if="tab.sessionId === sessions.activeSessionId"
                   :session-id="tab.sessionId"
                   :active="
-                    tab.sessionId === sessions.activeSessionId && sessions.panel === 'metrics'
+                    tab.sessionId === sessions.activeSessionId &&
+                    sessions.panel === 'metrics'
                   "
                   :disabled="tab.closed"
                 />
@@ -184,22 +216,12 @@ async function newConnection(): Promise<void> {
   max-width: 420px;
 }
 
-.empty-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 56px;
-  height: 56px;
+.empty-logo {
+  width: 64px;
+  height: 64px;
   margin-bottom: 16px;
   border-radius: 18px;
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: #041018;
-  background: linear-gradient(160deg, #c8e4ff, var(--accent));
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.5) inset,
-    0 12px 30px rgba(80, 150, 230, 0.3);
+  box-shadow: 0 12px 30px rgba(80, 150, 230, 0.3);
 }
 
 .empty h2 {

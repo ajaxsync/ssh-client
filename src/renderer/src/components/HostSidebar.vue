@@ -1,93 +1,98 @@
 <script setup lang="ts">
-import { computed, ref, toRaw } from 'vue'
-import type { HostConfig } from '../../../shared/types'
-import { useAppStore } from '../stores/app'
-import { useSessionStore } from '../stores/session'
-import { useToastStore } from '../stores/toast'
-import HostFormModal from './HostFormModal.vue'
-import GlassTip from './ui/GlassTip.vue'
+import { computed, ref, toRaw } from "vue";
+import type { HostConfig } from "../../../shared/types";
+import { useAppStore } from "../stores/app";
+import { useSessionStore } from "../stores/session";
+import { useToastStore } from "../stores/toast";
+import HostFormModal from "./HostFormModal.vue";
+import GlassTip from "./ui/GlassTip.vue";
 
 const emit = defineEmits<{
-  openSettings: []
-  openTrash: []
-  lock: []
-}>()
+  openSettings: [];
+  openTrash: [];
+  lock: [];
+}>();
 
-const app = useAppStore()
-const sessions = useSessionStore()
-const toasts = useToastStore()
-const query = ref('')
-const editing = ref<HostConfig | null>(null)
-const showForm = ref(false)
+const app = useAppStore();
+const sessions = useSessionStore();
+const toasts = useToastStore();
+const query = ref("");
+const editing = ref<HostConfig | null>(null);
+const showForm = ref(false);
 
 const colorMap: Record<string, string> = {
-  default: '#6cb6ff',
-  blue: '#5b9dff',
-  teal: '#2dd4bf',
-  amber: '#fbbf24',
-  rose: '#fb7185',
-  violet: '#a78bfa',
-  lime: '#a3e635'
-}
+  default: "#6cb6ff",
+  blue: "#5b9dff",
+  teal: "#2dd4bf",
+  amber: "#fbbf24",
+  rose: "#fb7185",
+  violet: "#a78bfa",
+  lime: "#a3e635",
+};
 
 const filtered = computed(() => {
-  const q = query.value.trim().toLowerCase()
-  const list = [...app.hosts].sort((a, b) => (b.lastConnectedAt ?? 0) - (a.lastConnectedAt ?? 0))
-  if (!q) return list
+  const q = query.value.trim().toLowerCase();
+  const list = [...app.hosts].sort(
+    (a, b) => (b.lastConnectedAt ?? 0) - (a.lastConnectedAt ?? 0),
+  );
+  if (!q) return list;
   return list.filter(
     (h) =>
       h.name.toLowerCase().includes(q) ||
       h.host.toLowerCase().includes(q) ||
-      (h.group || '').toLowerCase().includes(q)
-  )
-})
+      (h.group || "").toLowerCase().includes(q),
+  );
+});
 
 function openCreate(): void {
-  editing.value = null
-  showForm.value = true
+  editing.value = null;
+  showForm.value = true;
 }
 
 function openEdit(host: HostConfig): void {
-  editing.value = structuredClone(toRaw(host))
-  showForm.value = true
+  editing.value = structuredClone(toRaw(host));
+  showForm.value = true;
 }
 
 async function removeHost(host: HostConfig): Promise<void> {
-  if (!confirm(`将主机「${host.name}」移入回收站？`)) return
-  await app.deleteHost(host.id)
+  if (!confirm(`将主机「${host.name}」移入回收站？`)) return;
+  await app.deleteHost(host.id);
 }
 
 function formatConnectError(raw: string): string {
-  const msg = raw.trim()
-  if (/authentication methods failed/i.test(msg) || /All configured authentication/i.test(msg)) {
-    return '登录失败：用户名或密码/密钥不正确，或服务器禁止了当前认证方式。请点编辑图标核对后重试。'
+  const msg = raw.trim();
+  if (
+    /authentication methods failed/i.test(msg) ||
+    /All configured authentication/i.test(msg)
+  ) {
+    return "登录失败：用户名或密码/密钥不正确，或服务器禁止了当前认证方式。请点编辑图标核对后重试。";
   }
   if (/Timed out|ETIMEDOUT|ECONNREFUSED|ENOTFOUND/i.test(msg)) {
-    return `无法连接主机：${msg}`
+    return `无法连接主机：${msg}`;
   }
-  return msg
+  return msg;
 }
 
 async function connect(host: HostConfig): Promise<void> {
-  if (sessions.connecting) return
+  if (sessions.connecting) return;
   try {
-    await sessions.connect(host.id)
+    await sessions.connect(host.id);
   } catch (error) {
-    const raw = error instanceof Error ? error.message : String(error)
-    toasts.error(formatConnectError(raw), 8000)
+    const raw = error instanceof Error ? error.message : String(error);
+    toasts.error(formatConnectError(raw), 8000);
   }
 }
 
 function isConnecting(host: HostConfig): boolean {
-  return sessions.connectingHostId === host.id
+  return sessions.connectingHostId === host.id;
 }
 
 async function importConfig(): Promise<void> {
-  toasts.info(await app.importSshConfig())
+  toasts.info(await app.importSshConfig());
 }
 
 async function importCsv(): Promise<void> {
-  toasts.info(await app.importCsv())
+  toasts.info(await app.importCsv());
 }
 </script>
 
@@ -95,29 +100,92 @@ async function importCsv(): Promise<void> {
   <aside class="sidebar glass-panel">
     <div class="inner">
       <header>
-        <div>
-          <div class="eyebrow">Library</div>
-          <div class="title">主机</div>
+        <div class="brand">
+          <img class="brand-logo" src="/favicon.png" alt="SSH Client Plus" />
+          <span class="title">SSH Client Plus</span>
         </div>
         <div class="actions">
-          <GlassTip text="回收站" mode="wrap">
-            <button class="btn-glass sm" @click="emit('openTrash')">
-              回收站{{ app.trash.length ? `(${app.trash.length})` : '' }}
+          <GlassTip
+            :text="`回收站${app.trash.length ? `(${app.trash.length})` : ''}`"
+            mode="wrap"
+          >
+            <button
+              class="btn-icon sm"
+              aria-label="回收站"
+              @click="emit('openTrash')"
+            >
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M5 7h14M10 11v6M14 11v6M8.5 7l.6-2.2A1 1 0 0 1 10.1 4h3.8a1 1 0 0 1 1 .8L15.5 7M7 7l.8 11.2A1.5 1.5 0 0 0 9.3 19.5h5.4a1.5 1.5 0 0 0 1.5-1.3L17 7"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              <span v-if="app.trash.length" class="badge">{{
+                app.trash.length
+              }}</span>
             </button>
           </GlassTip>
           <GlassTip text="设置" mode="wrap">
-            <button class="btn-glass sm" @click="emit('openSettings')">设置</button>
+            <button
+              class="btn-icon sm"
+              aria-label="设置"
+              @click="emit('openSettings')"
+            >
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                />
+                <path
+                  d="M19.14 15.19a1.36 1.36 0 0 0 .27 1.5l.05.05a1.65 1.65 0 1 1-2.33 2.33l-.05-.05a1.36 1.36 0 0 0-1.5-.27 1.36 1.36 0 0 0-.82 1.24v.14a1.65 1.65 0 1 1-3.3 0v-.08a1.36 1.36 0 0 0-.89-1.24 1.36 1.36 0 0 0-1.5.27l-.05.05a1.65 1.65 0 1 1-2.33-2.33l.05-.05a1.36 1.36 0 0 0 .27-1.5 1.36 1.36 0 0 0-1.24-.82h-.14a1.65 1.65 0 1 1 0-3.3h.08a1.36 1.36 0 0 0 1.24-.89 1.36 1.36 0 0 0-.27-1.5l-.05-.05a1.65 1.65 0 1 1 2.33-2.33l.05.05a1.36 1.36 0 0 0 1.5.27h.07a1.36 1.36 0 0 0 .82-1.24v-.14a1.65 1.65 0 1 1 3.3 0v.08a1.36 1.36 0 0 0 .82 1.24 1.36 1.36 0 0 0 1.5-.27l.05-.05a1.65 1.65 0 1 1 2.33 2.33l-.05.05a1.36 1.36 0 0 0-.27 1.5v.07a1.36 1.36 0 0 0 1.24.82h.14a1.65 1.65 0 1 1 0 3.3h-.08a1.36 1.36 0 0 0-1.24.82Z"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                />
+              </svg>
+            </button>
           </GlassTip>
-          <GlassTip v-if="app.vault.protection !== 'os'" text="锁定" mode="wrap">
-            <button class="btn-glass sm" @click="emit('lock')">锁定</button>
+          <GlassTip
+            v-if="app.vault.protection !== 'os'"
+            text="锁定"
+            mode="wrap"
+          >
+            <button class="btn-icon sm" aria-label="锁定" @click="emit('lock')">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <rect
+                  x="5"
+                  y="11"
+                  width="14"
+                  height="10"
+                  rx="2"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                />
+                <path
+                  d="M8 11V7a4 4 0 1 1 8 0v4"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </button>
           </GlassTip>
         </div>
       </header>
 
       <div class="toolbar">
-        <input v-model="query" class="glass-field search" placeholder="搜索主机…" />
+        <input
+          v-model="query"
+          class="glass-field search"
+          placeholder="搜索主机…"
+        />
         <GlassTip text="添加主机" mode="wrap">
-          <button type="button" class="btn-icon accent" @click="openCreate">+</button>
+          <button type="button" class="btn-icon accent" @click="openCreate">
+            +
+          </button>
         </GlassTip>
       </div>
       <div class="import-row">
@@ -127,78 +195,87 @@ async function importCsv(): Promise<void> {
 
       <div class="list-wrap">
         <div class="list">
-        <div
-          v-for="host in filtered"
-          :key="host.id"
-          class="host hover-reveal-host"
-          :class="{
-            connecting: isConnecting(host),
-            busy: sessions.connecting
-          }"
-          role="button"
-          tabindex="0"
-          @click="connect(host)"
-          @keydown.enter.prevent="connect(host)"
-          @keydown.space.prevent="connect(host)"
-        >
-          <div class="row">
-            <GlassTip text="点击连接" mode="wrap">
-              <div class="host-main">
-                <span class="name-line">
-                  <span class="dot" :style="{ background: colorMap[host.color || 'default'] }" />
-                  <strong>{{ host.name }}</strong>
-                  <span v-if="isConnecting(host)" class="status">正在连接…</span>
-                  <span v-else-if="host.group" class="group">{{ host.group }}</span>
-                </span>
-                <div class="meta">{{ host.username }}@{{ host.host }}:{{ host.port }}</div>
+          <div
+            v-for="host in filtered"
+            :key="host.id"
+            class="host hover-reveal-host"
+            :class="{
+              connecting: isConnecting(host),
+              busy: sessions.connecting,
+            }"
+            role="button"
+            tabindex="0"
+            @click="connect(host)"
+            @keydown.enter.prevent="connect(host)"
+            @keydown.space.prevent="connect(host)"
+          >
+            <div class="row">
+              <GlassTip text="点击连接" mode="wrap">
+                <div class="host-main">
+                  <span class="name-line">
+                    <span
+                      class="dot"
+                      :style="{ background: colorMap[host.color || 'default'] }"
+                    />
+                    <strong>{{ host.name }}</strong>
+                    <span v-if="isConnecting(host)" class="status"
+                      >正在连接…</span
+                    >
+                    <span v-else-if="host.group" class="group">{{
+                      host.group
+                    }}</span>
+                  </span>
+                  <div class="meta">
+                    {{ host.username }}@{{ host.host }}:{{ host.port }}
+                  </div>
+                </div>
+              </GlassTip>
+              <div class="ops hover-reveal" @click.stop>
+                <GlassTip text="编辑" mode="wrap">
+                  <button
+                    type="button"
+                    class="btn-icon xs"
+                    aria-label="编辑"
+                    @click="openEdit(host)"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path
+                        d="M14.1 5.4 18.6 9.9M4 20l3.2-.7c.3-.1.6-.2.8-.4L19.5 7.4a2.1 2.1 0 0 0 0-3L19.6 4a2.1 2.1 0 0 0-3 0L5.1 15.5c-.2.2-.4.5-.4.8L4 20Z"
+                        stroke="currentColor"
+                        stroke-width="1.7"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+                  </button>
+                </GlassTip>
+                <GlassTip text="删除" mode="wrap">
+                  <button
+                    type="button"
+                    class="btn-icon xs danger"
+                    aria-label="删除"
+                    @click="removeHost(host)"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path
+                        d="M5 7h14M10 11v6M14 11v6M8.5 7l.6-2.2A1 1 0 0 1 10.1 4h3.8a1 1 0 0 1 1 .8L15.5 7M7 7l.8 11.2A1.5 1.5 0 0 0 9.3 19.5h5.4a1.5 1.5 0 0 0 1.5-1.3L17 7"
+                        stroke="currentColor"
+                        stroke-width="1.7"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+                  </button>
+                </GlassTip>
               </div>
-            </GlassTip>
-            <div class="ops hover-reveal" @click.stop>
-              <GlassTip text="编辑" mode="wrap">
-                <button
-                  type="button"
-                  class="btn-icon xs"
-                  aria-label="编辑"
-                  @click="openEdit(host)"
-                >
-                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <path
-                      d="M14.1 5.4 18.6 9.9M4 20l3.2-.7c.3-.1.6-.2.8-.4L19.5 7.4a2.1 2.1 0 0 0 0-3L19.6 4a2.1 2.1 0 0 0-3 0L5.1 15.5c-.2.2-.4.5-.4.8L4 20Z"
-                      stroke="currentColor"
-                      stroke-width="1.7"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    />
-                  </svg>
-                </button>
-              </GlassTip>
-              <GlassTip text="删除" mode="wrap">
-                <button
-                  type="button"
-                  class="btn-icon xs danger"
-                  aria-label="删除"
-                  @click="removeHost(host)"
-                >
-                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <path
-                      d="M5 7h14M10 11v6M14 11v6M8.5 7l.6-2.2A1 1 0 0 1 10.1 4h3.8a1 1 0 0 1 1 .8L15.5 7M7 7l.8 11.2A1.5 1.5 0 0 0 9.3 19.5h5.4a1.5 1.5 0 0 0 1.5-1.3L17 7"
-                      stroke="currentColor"
-                      stroke-width="1.7"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    />
-                  </svg>
-                </button>
-              </GlassTip>
+            </div>
+            <div v-if="host.note" class="note">{{ host.note }}</div>
+            <div class="auth">
+              {{ host.authType === "password" ? "密码" : "私钥" }}
+              <template v-if="host.jumpHostId"> · 跳板</template>
             </div>
           </div>
-          <div v-if="host.note" class="note">{{ host.note }}</div>
-          <div class="auth">
-            {{ host.authType === 'password' ? '密码' : '私钥' }}
-            <template v-if="host.jumpHostId"> · 跳板</template>
-          </div>
-        </div>
-        <div v-if="!filtered.length" class="empty">暂无主机，点击 + 添加</div>
+          <div v-if="!filtered.length" class="empty">暂无主机，点击 + 添加</div>
         </div>
       </div>
     </div>
@@ -213,6 +290,26 @@ async function importCsv(): Promise<void> {
 </template>
 
 <style scoped>
+.badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  text-align: center;
+}
+
+.actions .btn-icon {
+  position: relative;
+}
+
 .sidebar {
   display: flex;
   flex-direction: column;
@@ -239,12 +336,16 @@ header {
   gap: 10px;
 }
 
-.eyebrow {
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  margin-bottom: 2px;
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
 }
 
 .title {
