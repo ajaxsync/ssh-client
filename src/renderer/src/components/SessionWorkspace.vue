@@ -6,6 +6,7 @@ import { useAppStore } from "../stores/app";
 import TerminalPanel from "./TerminalPanel.vue";
 import SftpView from "./SftpView.vue";
 import MetricsView from "./MetricsView.vue";
+import DatabaseView from "./DatabaseView.vue";
 import GlassTip from "./ui/GlassTip.vue";
 import { useToastStore } from "../stores/toast";
 
@@ -157,6 +158,13 @@ onUnmounted(() => {
                 >
                   监控
                 </button>
+                <button
+                  type="button"
+                  :class="{ active: sessions.panel === 'database' }"
+                  @click="sessions.setPanel('database')"
+                >
+                  数据库
+                </button>
               </div>
             </div>
 
@@ -232,6 +240,20 @@ onUnmounted(() => {
                     tab.sessionId === sessions.activeSessionId &&
                     sessions.panel === 'metrics'
                   "
+                  :disabled="tab.closed"
+                />
+              </div>
+              <div
+                v-show="
+                  tab.sessionId === sessions.activeSessionId &&
+                  sessions.panel === 'database'
+                "
+                class="pane"
+              >
+                <DatabaseView
+                  v-if="tab.sessionId === sessions.activeSessionId"
+                  :session-id="tab.sessionId"
+                  :host-id="tab.hostId"
                   :disabled="tab.closed"
                 />
               </div>

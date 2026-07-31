@@ -4,7 +4,7 @@ import { useAppStore } from './app'
 import { useToastStore } from './toast'
 import type { TabColor } from '../../../shared/types'
 
-export type MainPanel = 'terminal' | 'sftp' | 'metrics'
+export type MainPanel = 'terminal' | 'sftp' | 'metrics' | 'database'
 
 export interface TabSession {
   sessionId: string

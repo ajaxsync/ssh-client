@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto'
 import { BrowserWindow } from 'electron'
 import { createWriteStream, createReadStream, readFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'fs'
 import { basename, join, posix } from 'path'
+import type { Duplex } from 'stream'
 import { Client, SFTPWrapper, ConnectConfig, ClientChannel } from 'ssh2'
 import { AppSettings, HostConfig, SftpEntry, SftpListResult, TransferProgress } from '../shared/types'
 import { createHostVerifier } from './host-keys'
@@ -24,6 +25,7 @@ interface ActiveSession {
 export class SessionManager {
   private sessions = new Map<string, ActiveSession>()
   private window: BrowserWindow | null = null
+  private cleanupListeners = new Set<(sessionId: string) => void>()
 
   setWindow(win: BrowserWindow | null): void {
     this.window = win
@@ -124,6 +126,25 @@ export class SessionManager {
   disconnectAll(): void {
     metricsCollector.stopAll()
     for (const id of [...this.sessions.keys()]) this.cleanup(id, true)
+  }
+
+  onCleanup(listener: (sessionId: string) => void): () => void {
+    this.cleanupListeners.add(listener)
+    return () => this.cleanupListeners.delete(listener)
+  }
+
+  openForwardStream(sessionId: string, dstHost: string, dstPort: number): Promise<Duplex> {
+    const session = this.requireSession(sessionId)
+    return new Promise((resolve, reject) => {
+      session.client.forwardOut('127.0.0.1', 0, dstHost, dstPort, (err, stream) => {
+        if (err) reject(err)
+        else resolve(stream)
+      })
+    })
+  }
+
+  exec(sessionId: string, command: string): Promise<string> {
+    return this.execCommand(this.requireSession(sessionId).client, command)
   }
 
   async list(sessionId: string, remotePath: string): Promise<SftpListResult> {
@@ -532,6 +553,13 @@ export class SessionManager {
       }
     }
     this.sessions.delete(sessionId)
+    for (const listener of this.cleanupListeners) {
+      try {
+        listener(sessionId)
+      } catch {
+        /* ignore */
+      }
+    }
   }
 
   private emitProgress(payload: TransferProgress): void {

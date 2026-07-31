@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { compareSemver } from '../update-check'
 import { parseSshConfig, linkProxyJumps } from '../ssh-config'
 import { redactHost, mergeHostSecrets } from '../host-redact'
+import { databaseManager } from '../database-manager'
 import type { HostConfig } from '../../shared/types'
 
 describe('compareSemver', () => {
@@ -9,6 +10,26 @@ describe('compareSemver', () => {
     expect(compareSemver('1.0.2', '1.0.1')).toBeGreaterThan(0)
     expect(compareSemver('1.0.0', '1.0.1')).toBeLessThan(0)
     expect(compareSemver('v1.2.0', '1.2.0')).toBe(0)
+  })
+})
+
+describe('database SQL risk', () => {
+  it('allows read-only SQL', () => {
+    const risk = databaseManager.assessSql('select * from users limit 10', true)
+    expect(risk.level).toBe('safe')
+    expect(risk.readonlyBlocked).toBe(false)
+  })
+
+  it('flags write SQL for readonly connections', () => {
+    const risk = databaseManager.assessSql("insert into users(name) values('a')", true)
+    expect(risk.level).toBe('write')
+    expect(risk.readonlyBlocked).toBe(true)
+  })
+
+  it('treats delete without where as dangerous', () => {
+    const risk = databaseManager.assessSql('delete from users', false)
+    expect(risk.level).toBe('danger')
+    expect(risk.reasons.join(' ')).toContain('WHERE')
   })
 })
 

@@ -2,6 +2,8 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type {
   AppSettings,
+  DatabaseConnectionConfig,
+  DatabaseConnectionPublic,
   HostConfig,
   HostPublic,
   SftpBookmark,
@@ -21,6 +23,7 @@ export const useAppStore = defineStore('app', () => {
   const hosts = ref<HostPublic[]>([])
   const settings = ref<AppSettings>({ ...DEFAULT_SETTINGS })
   const bookmarks = ref<SftpBookmark[]>([])
+  const databaseConnections = ref<DatabaseConnectionPublic[]>([])
   const trash = ref<TrashHostPublic[]>([])
   const error = ref('')
   const busy = ref(false)
@@ -123,6 +126,7 @@ export const useAppStore = defineStore('app', () => {
       }
       hosts.value = []
       bookmarks.value = []
+      databaseConnections.value = []
       trash.value = []
       settings.value = { ...DEFAULT_SETTINGS }
       await refreshStatus()
@@ -136,16 +140,18 @@ export const useAppStore = defineStore('app', () => {
     await window.api.vault.lock()
     hosts.value = []
     bookmarks.value = []
+    databaseConnections.value = []
     trash.value = []
     settings.value = { ...DEFAULT_SETTINGS }
     await refreshStatus()
   }
 
   async function loadWorkspace(): Promise<void> {
-    const [hostsRes, settingsRes, bookmarkRes, trashRes] = await Promise.all([
+    const [hostsRes, settingsRes, bookmarkRes, databaseRes, trashRes] = await Promise.all([
       window.api.hosts.list(),
       window.api.settings.get(),
       window.api.bookmarks.list(),
+      window.api.database.listConnections(),
       window.api.trash.list()
     ])
     if (hostsRes.ok) hosts.value = hostsRes.data
@@ -165,6 +171,7 @@ export const useAppStore = defineStore('app', () => {
       }
     }
     if (bookmarkRes.ok) bookmarks.value = bookmarkRes.data
+    if (databaseRes.ok) databaseConnections.value = databaseRes.data
     if (trashRes.ok) trash.value = trashRes.data
   }
 
@@ -250,6 +257,42 @@ export const useAppStore = defineStore('app', () => {
     await loadWorkspace()
   }
 
+  async function listDatabaseConnections(hostId: string): Promise<DatabaseConnectionPublic[]> {
+    const res = await window.api.database.listConnections(hostId)
+    return res.ok ? res.data : []
+  }
+
+  async function getDatabaseConnection(id: string): Promise<DatabaseConnectionConfig | null> {
+    const res = await window.api.database.getConnection(id)
+    if (!res.ok) {
+      error.value = res.error
+      return null
+    }
+    return res.data
+  }
+
+  async function saveDatabaseConnection(
+    connection: DatabaseConnectionConfig
+  ): Promise<DatabaseConnectionPublic | null> {
+    const res = await window.api.database.saveConnection(connection)
+    if (!res.ok) {
+      error.value = res.error
+      return null
+    }
+    await loadWorkspace()
+    return res.data
+  }
+
+  async function deleteDatabaseConnection(id: string): Promise<boolean> {
+    const res = await window.api.database.deleteConnection(id)
+    if (!res.ok) {
+      error.value = res.error
+      return false
+    }
+    await loadWorkspace()
+    return true
+  }
+
   async function importSshConfig(): Promise<string> {
     const res = await window.api.hosts.importSshConfig()
     if (!res.ok) return res.error
@@ -262,6 +305,7 @@ export const useAppStore = defineStore('app', () => {
     hosts,
     settings,
     bookmarks,
+    databaseConnections,
     trash,
     error,
     busy,
@@ -285,6 +329,10 @@ export const useAppStore = defineStore('app', () => {
     pushCommandHistory,
     saveBookmark,
     deleteBookmark,
+    listDatabaseConnections,
+    getDatabaseConnection,
+    saveDatabaseConnection,
+    deleteDatabaseConnection,
     importSshConfig
   }
 })

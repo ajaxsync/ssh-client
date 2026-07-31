@@ -1,6 +1,15 @@
 import { contextBridge, clipboard, ipcRenderer, IpcRendererEvent } from 'electron'
 import type {
   AppSettings,
+  DatabaseColumnInfo,
+  DatabaseConnectionConfig,
+  DatabaseConnectionPublic,
+  DatabaseDetectedService,
+  DatabaseQueryResult,
+  DatabaseSchemaInfo,
+  DatabaseSessionInfo,
+  DatabaseSqlRisk,
+  DatabaseTableInfo,
   HostConfig,
   HostMetrics,
   HostPublic,
@@ -76,6 +85,76 @@ const api = {
     save: (bookmark: SftpBookmark): Promise<Result<SftpBookmark>> =>
       ipcRenderer.invoke('bookmarks:save', bookmark),
     delete: (id: string): Promise<Result> => ipcRenderer.invoke('bookmarks:delete', id)
+  },
+  database: {
+    listConnections: (hostId?: string): Promise<Result<DatabaseConnectionPublic[]>> =>
+      ipcRenderer.invoke('database:listConnections', hostId),
+    getConnection: (id: string): Promise<Result<DatabaseConnectionConfig>> =>
+      ipcRenderer.invoke('database:getConnection', id),
+    saveConnection: (
+      connection: DatabaseConnectionConfig
+    ): Promise<Result<DatabaseConnectionPublic>> =>
+      ipcRenderer.invoke('database:saveConnection', connection),
+    deleteConnection: (id: string): Promise<Result> =>
+      ipcRenderer.invoke('database:deleteConnection', id),
+    testConnection: (
+      sshSessionId: string,
+      connection: DatabaseConnectionConfig
+    ): Promise<Result> =>
+      ipcRenderer.invoke('database:testConnection', { sshSessionId, connection }),
+    detectServices: (sshSessionId: string): Promise<Result<DatabaseDetectedService[]>> =>
+      ipcRenderer.invoke('database:detectServices', sshSessionId),
+    connect: (
+      sshSessionId: string,
+      connectionId: string
+    ): Promise<Result<DatabaseSessionInfo>> =>
+      ipcRenderer.invoke('database:connect', { sshSessionId, connectionId }),
+    disconnect: (dbSessionId: string): Promise<Result> =>
+      ipcRenderer.invoke('database:disconnect', dbSessionId),
+    assessSql: (sql: string, readonly?: boolean): Promise<Result<DatabaseSqlRisk>> =>
+      ipcRenderer.invoke('database:assessSql', { sql, readonly }),
+    execute: (
+      dbSessionId: string,
+      connectionId: string,
+      sql: string,
+      confirmed?: boolean,
+      saveHistory?: boolean
+    ): Promise<Result<DatabaseQueryResult>> =>
+      ipcRenderer.invoke('database:execute', {
+        dbSessionId,
+        connectionId,
+        sql,
+        confirmed,
+        saveHistory
+      }),
+    cancel: (
+      dbSessionId: string
+    ): Promise<Result<{ requested: boolean; message: string }>> =>
+      ipcRenderer.invoke('database:cancel', dbSessionId),
+    exportCsv: (
+      columns: string[],
+      rows: Record<string, unknown>[],
+      defaultPath?: string
+    ): Promise<Result<string | null>> =>
+      ipcRenderer.invoke('database:exportCsv', { columns, rows, defaultPath }),
+    listSchemas: (dbSessionId: string): Promise<Result<DatabaseSchemaInfo[]>> =>
+      ipcRenderer.invoke('database:listSchemas', dbSessionId),
+    listTables: (dbSessionId: string, schema: string): Promise<Result<DatabaseTableInfo[]>> =>
+      ipcRenderer.invoke('database:listTables', { dbSessionId, schema }),
+    listColumns: (
+      dbSessionId: string,
+      schema: string,
+      table: string
+    ): Promise<Result<DatabaseColumnInfo[]>> =>
+      ipcRenderer.invoke('database:listColumns', { dbSessionId, schema, table }),
+    listHistory: (connectionId: string): Promise<Result<string[]>> =>
+      ipcRenderer.invoke('database:history:list', connectionId),
+    pushHistory: (connectionId: string, sql: string): Promise<Result<string[]>> =>
+      ipcRenderer.invoke('database:history:push', connectionId, sql),
+    deleteHistory: (connectionId: string, sql: string): Promise<Result<string[]>> =>
+      ipcRenderer.invoke('database:history:delete', connectionId, sql),
+    clearHistory: (connectionId: string): Promise<Result<string[]>> =>
+      ipcRenderer.invoke('database:history:clear', connectionId)
   },
   session: {
     connect: (payload: {

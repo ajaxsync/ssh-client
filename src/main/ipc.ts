@@ -1,14 +1,16 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { randomUUID } from 'crypto'
-import { existsSync } from 'fs'
+import { existsSync, writeFileSync } from 'fs'
 import { dirname } from 'path'
 import {
   AppSettings,
+  DatabaseConnectionConfig,
   HostConfig,
   SftpBookmark
 } from '../shared/types'
 import { store } from './store/encrypted-store'
 import { sessionManager } from './session-manager'
+import { databaseManager } from './database-manager'
 import {
   defaultSshConfigPath,
   linkProxyJumps,
@@ -18,6 +20,11 @@ import {
 } from './host-utils'
 import { checkGitHubUpdate } from './update-check'
 import { mergeHostSecrets, redactHost, redactHosts, redactTrash } from './host-redact'
+import {
+  mergeDatabaseSecrets,
+  redactDatabaseConnection,
+  redactDatabaseConnections
+} from './database-redact'
 
 function ok<T>(data: T): { ok: true; data: T }
 function ok(): { ok: true }
@@ -32,6 +39,18 @@ function isAllowedExternalUrl(url: string): boolean {
 function fail(error: unknown): { ok: false; error: string } {
   const message = error instanceof Error ? error.message : String(error)
   return { ok: false, error: message }
+}
+
+function buildCsv(columns: string[], rows: Record<string, unknown>[]): string {
+  const escapeCell = (value: unknown): string => {
+    if (value === null || value === undefined) return ''
+    const text = typeof value === 'string' ? value : JSON.stringify(value)
+    return `"${String(text ?? '').replace(/"/g, '""')}"`
+  }
+  return [
+    columns.map(escapeCell).join(','),
+    ...rows.map((row) => columns.map((column) => escapeCell(row[column])).join(','))
+  ].join('\r\n')
 }
 
 export function registerIpc(getWindow: () => BrowserWindow | null): void {
@@ -107,6 +126,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   })
 
   ipcMain.handle('vault:lock', () => {
+    databaseManager.disconnectAll()
     sessionManager.disconnectAll()
     store.lock()
     return ok()
@@ -114,6 +134,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
 
   ipcMain.handle('vault:reset', () => {
     try {
+      databaseManager.disconnectAll()
       sessionManager.disconnectAll()
       store.reset()
       return ok()
@@ -280,6 +301,224 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     try {
       store.deleteBookmark(id)
       return ok()
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle('database:listConnections', (_e, hostId?: string) => {
+    try {
+      return ok(redactDatabaseConnections(store.listDatabaseConnections(hostId)))
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle('database:getConnection', (_e, id: string) => {
+    try {
+      const connection = store.getDatabaseConnection(id)
+      if (!connection) throw new Error('数据库连接不存在')
+      return ok(connection)
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle('database:saveConnection', (_e, connection: DatabaseConnectionConfig) => {
+    try {
+      const existing = store.getDatabaseConnection(connection.id)
+      const merged = mergeDatabaseSecrets(connection, existing)
+      return ok(redactDatabaseConnection(store.saveDatabaseConnection(merged)))
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle('database:deleteConnection', (_e, id: string) => {
+    try {
+      store.deleteDatabaseConnection(id)
+      return ok()
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle(
+    'database:testConnection',
+    async (_e, payload: { sshSessionId: string; connection: DatabaseConnectionConfig }) => {
+      try {
+        const existing = store.getDatabaseConnection(payload.connection.id)
+        const merged = mergeDatabaseSecrets(payload.connection, existing)
+        await databaseManager.test(payload.sshSessionId, merged)
+        return ok()
+      } catch (error) {
+        return fail(error)
+      }
+    }
+  )
+
+  ipcMain.handle('database:detectServices', async (_e, sshSessionId: string) => {
+    try {
+      return ok(await databaseManager.detectServices(sshSessionId))
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle(
+    'database:connect',
+    async (_e, payload: { sshSessionId: string; connectionId: string }) => {
+      try {
+        const connection = store.getDatabaseConnection(payload.connectionId)
+        if (!connection) throw new Error('数据库连接不存在')
+        return ok({
+          ...(await databaseManager.connect(payload.sshSessionId, connection)),
+          connectionId: connection.id,
+          sshSessionId: payload.sshSessionId
+        })
+      } catch (error) {
+        return fail(error)
+      }
+    }
+  )
+
+  ipcMain.handle('database:disconnect', async (_e, dbSessionId: string) => {
+    try {
+      await databaseManager.disconnect(dbSessionId)
+      return ok()
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle('database:assessSql', (_e, payload: { sql: string; readonly?: boolean }) => {
+    try {
+      return ok(databaseManager.assessSql(payload.sql, payload.readonly))
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle(
+    'database:execute',
+    async (
+      _e,
+      payload: {
+        dbSessionId: string
+        connectionId: string
+        sql: string
+        confirmed?: boolean
+        saveHistory?: boolean
+      }
+    ) => {
+      try {
+        const result = await databaseManager.execute(
+          payload.dbSessionId,
+          payload.sql,
+          !!payload.confirmed
+        )
+        if (payload.saveHistory !== false) {
+          store.pushDatabaseHistory(payload.connectionId, payload.sql)
+        }
+        return ok(result)
+      } catch (error) {
+        return fail(error)
+      }
+    }
+  )
+
+  ipcMain.handle('database:cancel', async (_e, dbSessionId: string) => {
+    try {
+      return ok(await databaseManager.cancel(dbSessionId))
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle(
+    'database:exportCsv',
+    async (
+      _e,
+      payload: { columns: string[]; rows: Record<string, unknown>[]; defaultPath?: string }
+    ) => {
+      try {
+        const win = getWindow()
+        const opts: Electron.SaveDialogOptions = {
+          title: '导出查询结果',
+          defaultPath: payload.defaultPath || 'query-result.csv',
+          filters: [{ name: 'CSV', extensions: ['csv'] }]
+        }
+        const result = win
+          ? await dialog.showSaveDialog(win, opts)
+          : await dialog.showSaveDialog(opts)
+        if (result.canceled || !result.filePath) return ok(null)
+        writeFileSync(result.filePath, buildCsv(payload.columns, payload.rows), 'utf8')
+        return ok(result.filePath)
+      } catch (error) {
+        return fail(error)
+      }
+    }
+  )
+
+  ipcMain.handle('database:listSchemas', async (_e, dbSessionId: string) => {
+    try {
+      return ok(await databaseManager.listSchemas(dbSessionId))
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle(
+    'database:listTables',
+    async (_e, payload: { dbSessionId: string; schema: string }) => {
+      try {
+        return ok(await databaseManager.listTables(payload.dbSessionId, payload.schema))
+      } catch (error) {
+        return fail(error)
+      }
+    }
+  )
+
+  ipcMain.handle(
+    'database:listColumns',
+    async (_e, payload: { dbSessionId: string; schema: string; table: string }) => {
+      try {
+        return ok(
+          await databaseManager.listColumns(payload.dbSessionId, payload.schema, payload.table)
+        )
+      } catch (error) {
+        return fail(error)
+      }
+    }
+  )
+
+  ipcMain.handle('database:history:list', (_e, connectionId: string) => {
+    try {
+      return ok(store.listDatabaseHistory(connectionId))
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle('database:history:push', (_e, connectionId: string, sql: string) => {
+    try {
+      return ok(store.pushDatabaseHistory(connectionId, sql))
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle('database:history:delete', (_e, connectionId: string, sql: string) => {
+    try {
+      return ok(store.deleteDatabaseHistoryItem(connectionId, sql))
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle('database:history:clear', (_e, connectionId: string) => {
+    try {
+      return ok(store.clearDatabaseHistory(connectionId))
     } catch (error) {
       return fail(error)
     }

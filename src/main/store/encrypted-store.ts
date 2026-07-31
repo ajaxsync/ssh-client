@@ -5,7 +5,9 @@ import { join } from 'path'
 import {
   AppSettings,
   COMMAND_HISTORY_MAX,
+  DATABASE_HISTORY_MAX,
   DEFAULT_SETTINGS,
+  DatabaseConnectionConfig,
   HostConfig,
   METRICS_LAYOUT_VERSION,
   SftpBookmark,
@@ -21,6 +23,9 @@ interface VaultPayload {
   commandHistory: Record<string, string[]>
   bookmarks: SftpBookmark[]
   trashHosts: TrashHostItem[]
+  databaseConnections: DatabaseConnectionConfig[]
+  /** databaseConnectionId → SQL 列表（最近在前） */
+  databaseHistory: Record<string, string[]>
 }
 
 type VaultProtection = 'password' | 'os'
@@ -68,6 +73,42 @@ function normalizeCommandHistory(raw: unknown): Record<string, string[]> {
   return out
 }
 
+function normalizeDatabaseHistory(raw: unknown): Record<string, string[]> {
+  if (!raw || typeof raw !== 'object') return {}
+  const out: Record<string, string[]> = {}
+  for (const [connectionId, list] of Object.entries(raw as Record<string, unknown>)) {
+    if (!connectionId || !Array.isArray(list)) continue
+    out[connectionId] = list
+      .filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+      .map((x) => x.trim())
+      .slice(0, DATABASE_HISTORY_MAX)
+  }
+  return out
+}
+
+function normalizeDatabaseConnections(raw: unknown): DatabaseConnectionConfig[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .filter((x): x is DatabaseConnectionConfig => {
+      if (!x || typeof x !== 'object') return false
+      const c = x as Partial<DatabaseConnectionConfig>
+      return (
+        typeof c.id === 'string' &&
+        typeof c.hostId === 'string' &&
+        typeof c.name === 'string' &&
+        (c.driver === 'mysql' || c.driver === 'postgres') &&
+        typeof c.dbHost === 'string' &&
+        typeof c.username === 'string'
+      )
+    })
+    .map((c) => ({
+      ...c,
+      dbPort: Number(c.dbPort) || (c.driver === 'postgres' ? 5432 : 3306),
+      createdAt: Number(c.createdAt) || Date.now(),
+      updatedAt: Number(c.updatedAt) || Date.now()
+    }))
+}
+
 function normalizeVault(data: Partial<VaultPayload> & { snippets?: unknown }): VaultPayload {
   const settings = { ...DEFAULT_SETTINGS, ...(data.settings ?? {}) }
   return {
@@ -79,7 +120,9 @@ function normalizeVault(data: Partial<VaultPayload> & { snippets?: unknown }): V
     },
     commandHistory: normalizeCommandHistory(data.commandHistory),
     bookmarks: data.bookmarks ?? [],
-    trashHosts: data.trashHosts ?? []
+    trashHosts: data.trashHosts ?? [],
+    databaseConnections: normalizeDatabaseConnections(data.databaseConnections),
+    databaseHistory: normalizeDatabaseHistory(data.databaseHistory)
   }
 }
 
@@ -274,6 +317,11 @@ export class EncryptedStore {
     if (!host) return
     this.cache!.hosts = this.cache!.hosts.filter((h) => h.id !== id)
     this.cache!.bookmarks = this.cache!.bookmarks.filter((b) => b.hostId !== id)
+    const removedDbIds = this.cache!.databaseConnections
+      .filter((c) => c.hostId === id)
+      .map((c) => c.id)
+    this.cache!.databaseConnections = this.cache!.databaseConnections.filter((c) => c.hostId !== id)
+    for (const connectionId of removedDbIds) delete this.cache!.databaseHistory[connectionId]
     delete this.cache!.commandHistory[id]
     for (const h of this.cache!.hosts) {
       if (h.jumpHostId === id) h.jumpHostId = undefined
@@ -399,6 +447,77 @@ export class EncryptedStore {
     this.ensureUnlocked()
     this.cache!.bookmarks = this.cache!.bookmarks.filter((b) => b.id !== id)
     this.persist()
+  }
+
+  listDatabaseConnections(hostId?: string): DatabaseConnectionConfig[] {
+    this.ensureUnlocked()
+    const list = this.cache!.databaseConnections.filter((c) => !hostId || c.hostId === hostId)
+    return structuredClone(list)
+  }
+
+  getDatabaseConnection(id: string): DatabaseConnectionConfig | undefined {
+    this.ensureUnlocked()
+    const connection = this.cache!.databaseConnections.find((c) => c.id === id)
+    return connection ? structuredClone(connection) : undefined
+  }
+
+  saveDatabaseConnection(connection: DatabaseConnectionConfig): DatabaseConnectionConfig {
+    this.ensureUnlocked()
+    const now = Date.now()
+    const payload: DatabaseConnectionConfig = {
+      ...connection,
+      dbPort: Number(connection.dbPort) || (connection.driver === 'postgres' ? 5432 : 3306),
+      createdAt: connection.createdAt || now,
+      updatedAt: now
+    }
+    const idx = this.cache!.databaseConnections.findIndex((c) => c.id === payload.id)
+    if (idx >= 0) this.cache!.databaseConnections[idx] = payload
+    else this.cache!.databaseConnections.push(payload)
+    this.persist()
+    return structuredClone(payload)
+  }
+
+  deleteDatabaseConnection(id: string): void {
+    this.ensureUnlocked()
+    this.cache!.databaseConnections = this.cache!.databaseConnections.filter((c) => c.id !== id)
+    delete this.cache!.databaseHistory[id]
+    this.persist()
+  }
+
+  listDatabaseHistory(connectionId: string): string[] {
+    this.ensureUnlocked()
+    return structuredClone(this.cache!.databaseHistory[connectionId] ?? [])
+  }
+
+  pushDatabaseHistory(connectionId: string, sql: string): string[] {
+    this.ensureUnlocked()
+    const value = sql.trim()
+    if (!connectionId || !value) {
+      return structuredClone(this.cache!.databaseHistory[connectionId] ?? [])
+    }
+    const prev = this.cache!.databaseHistory[connectionId] ?? []
+    this.cache!.databaseHistory[connectionId] = [value, ...prev.filter((x) => x !== value)].slice(
+      0,
+      DATABASE_HISTORY_MAX
+    )
+    this.persist()
+    return structuredClone(this.cache!.databaseHistory[connectionId])
+  }
+
+  deleteDatabaseHistoryItem(connectionId: string, sql: string): string[] {
+    this.ensureUnlocked()
+    const value = sql.trim()
+    const prev = this.cache!.databaseHistory[connectionId] ?? []
+    this.cache!.databaseHistory[connectionId] = prev.filter((item) => item !== value)
+    this.persist()
+    return structuredClone(this.cache!.databaseHistory[connectionId])
+  }
+
+  clearDatabaseHistory(connectionId: string): string[] {
+    this.ensureUnlocked()
+    this.cache!.databaseHistory[connectionId] = []
+    this.persist()
+    return []
   }
 
   private readFile(): EncryptedFile {

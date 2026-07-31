@@ -1,5 +1,6 @@
 export type AuthType = 'password' | 'privateKey'
 export type ThemeMode = 'dark' | 'light'
+export type DatabaseDriver = 'mysql' | 'postgres'
 export type TabColor =
   | 'default'
   | 'blue'
@@ -47,8 +48,88 @@ export interface SftpBookmark {
   hostId?: string
 }
 
+export interface DatabaseConnectionConfig {
+  id: string
+  hostId: string
+  name: string
+  driver: DatabaseDriver
+  dbHost: string
+  dbPort: number
+  username: string
+  password?: string
+  database?: string
+  ssl?: boolean
+  readonly?: boolean
+  note?: string
+  createdAt: number
+  updatedAt: number
+}
+
+export type DatabaseConnectionPublic = Omit<DatabaseConnectionConfig, 'password'> & {
+  hasPassword: boolean
+}
+
+export interface DatabaseDetectedService {
+  id: string
+  driver: DatabaseDriver
+  host: string
+  port: number
+  label: string
+  hasService: boolean
+  hasPort: boolean
+  serviceDetail?: string
+  portDetail?: string
+  version?: string
+  manual?: boolean
+}
+
+export interface DatabaseSessionInfo {
+  dbSessionId: string
+  connectionId: string
+  sshSessionId: string
+  driver: DatabaseDriver
+  name: string
+  database?: string
+}
+
+export interface DatabaseColumnInfo {
+  name: string
+  type: string
+  nullable: boolean
+  defaultValue?: string
+  ordinal: number
+}
+
+export interface DatabaseTableInfo {
+  schema: string
+  name: string
+  type: 'table' | 'view'
+}
+
+export interface DatabaseSchemaInfo {
+  name: string
+}
+
+export interface DatabaseQueryResult {
+  columns: string[]
+  rows: Record<string, unknown>[]
+  rowCount: number
+  affectedRows?: number
+  command?: string
+  elapsedMs: number
+}
+
+export type DatabaseRiskLevel = 'safe' | 'write' | 'danger'
+
+export interface DatabaseSqlRisk {
+  level: DatabaseRiskLevel
+  readonlyBlocked: boolean
+  reasons: string[]
+}
+
 /** 每主机命令历史上限（MRU 去重） */
 export const COMMAND_HISTORY_MAX = 50
+export const DATABASE_HISTORY_MAX = 50
 
 export interface TrashHostItem {
   host: HostConfig
